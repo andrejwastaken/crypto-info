@@ -1,6 +1,5 @@
 package mk.ukim.finki.das.cryptoinfo.controller;
 
-import jakarta.websocket.server.PathParam;
 import mk.ukim.finki.das.cryptoinfo.dto.CoinStatsDTO;
 import mk.ukim.finki.das.cryptoinfo.model.OhlcvData;
 import mk.ukim.finki.das.cryptoinfo.service.OhlcvDataService;
@@ -13,8 +12,6 @@ import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.PagedModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.time.LocalDate;
 
 @RestController
 @CrossOrigin(origins="*")
@@ -46,16 +43,5 @@ public class OhlcvDataController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(stats);
-    }
-
-    @GetMapping("/date/{date}")
-    public PagedModel<EntityModel<OhlcvData>> getTopCoinsData(
-            @PathVariable LocalDate date,
-            @PageableDefault(sort = "volume", direction = Sort.Direction.DESC)
-            Pageable pageable
-    ){
-        if (date.isEqual(LocalDate.now())) date = date.minusDays(1);
-        Page<OhlcvData> page = ohlcvDataService.getByDate(date, pageable);
-        return assembler.toModel(page);
     }
 }

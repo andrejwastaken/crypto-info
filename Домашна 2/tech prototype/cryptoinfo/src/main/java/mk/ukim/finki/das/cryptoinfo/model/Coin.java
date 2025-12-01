@@ -22,7 +22,7 @@ public class Coin {
     private String name;
 
     @Column(name = "updated_at", columnDefinition = "DATE")
-    private LocalDate updated_at;
+    private LocalDate updatedAt;
 
     @Column(name = "market_cap")
     private Double marketCap;
