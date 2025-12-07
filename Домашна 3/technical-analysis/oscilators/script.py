@@ -16,16 +16,17 @@ db_host = os.getenv('DB_HOST')
 db_port = os.getenv('DB_PORT')
 db_name = os.getenv('DB_NAME')
 
-
+HISTORY_LIMIT_DAYS = 3 * 365
 
 encoded_password = quote_plus(db_password)
 connection_str = f'postgresql://{db_user}:{encoded_password}@{db_host}:{db_port}/{db_name}'
 db_connection = create_engine(connection_str)
 
-query = """
+query = f"""
 SELECT symbol, date, open, high, low, close, volume
 FROM ohlcv_data
 WHERE symbol IN (SELECT symbol FROM coins_metadata) 
+  AND date >= CURRENT_DATE - INTERVAL '{HISTORY_LIMIT_DAYS} days'
 ORDER BY symbol, date ASC
 """
 
@@ -55,21 +56,27 @@ def process_indicators(df):
     if len(df) < 30: return df
     
     try:
-        #Calculating oscilators
+        #Calculating rsi
         df['RSI'] = df.ta.rsi(length=14)
         
+        #Calculating macd
         macd = df.ta.macd(fast=12, slow=26, signal=9)
         if macd is not None: df = pd.concat([df, macd], axis=1)
         
+        #Calculating stoch
         stoch = df.ta.stoch(k=14, d=3, smooth_k=3)
         if stoch is not None: df = pd.concat([df, stoch], axis=1)
         
+        #Calculating adx
+        adx = df.ta.adx(length=14)
+        if adx is not None: df = pd.concat([df, adx], axis=1)
+        
+        #Calculating cci
         df['CCI'] = df.ta.cci(length=20)
 
         #Signal strength
         def get_signal_data(row):
             score = 0
-            
             
             try:
                 if row['RSI'] < 30: score += 1      
@@ -90,15 +97,20 @@ def process_indicators(df):
 
             try:
                 if row['MACD_12_26_9'] > row['MACDs_12_26_9']: score += 1
-               
-                else: 
-                    score -= 1
+                else: score -= 1
             except: pass
 
-            strength = score / 4.0
+            try:
+                # ADX Check: DMP (Plus) vs DMN (Minus)
+                if row['DMP_14'] > row['DMN_14']: score += 1
+                else: score -= 1
+            except: pass
 
-            if strength >= 0.5: label = "BUY"
-            elif strength <= -0.5: label = "SELL"
+            # Normalized by 5 indicators
+            strength = score / 5.0
+
+            if strength >= 0.4: label = "BUY"
+            elif strength <= -0.4: label = "SELL"
             else: label = "HOLD"
 
             return pd.Series([label, strength])
