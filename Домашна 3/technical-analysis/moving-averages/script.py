@@ -1,166 +1,96 @@
+import numpy as np
 import pandas as pd
 import ta
-from sqlalchemy import create_engine
-from dotenv import load_dotenv
-import os
-import numpy as np
-
-load_dotenv()
+from tqdm import tqdm
 
 
-# fetch 3 years to ensure montly timeframe has enough data (>= 20 months) to calculate indicators and provide a year of signals
-HISTORY_LIMIT_DAYS = 3 * 365 
+HISTORY_LIMIT_DAYS = 3 * 365
+VOLUME_BOOST = 1.2
+VOLUME_DAMPEN = 0.8
 
-def generate_signals(df):
-    """
-    Calculates a 'Signal Strength' score (-1 to 1) based on a voting system.
-    """
-    close = df['Close']
-    volume = df['Volume']
-    
-    # step 1. calculate indicators
+
+def compute_moving_average_metrics(df: pd.DataFrame) -> pd.DataFrame:
+    if len(df) < 20:
+        return df
+
+    close = df["Close"]
+    volume = df["Volume"]
+
+    # simple moving average
     sma_20 = ta.trend.sma_indicator(close, window=20)
+    # exponential moving average
     ema_20 = ta.trend.ema_indicator(close, window=20)
+    # weighted moving average
     wma_20 = ta.trend.wma_indicator(close, window=20)
+    # volume moving average
     vol_sma_20 = ta.trend.sma_indicator(volume, window=20)
-    
-    # 1.1 Bollinger Bands
+    # bollinger bonds
     bb = ta.volatility.BollingerBands(close=close, window=20, window_dev=2)
-    bb_mid = bb.bollinger_mavg() # Middle band is essentially an SMA
-    
-    # step 2. the voting system
-    
-    # start with 0 for each row
-    score = pd.Series(0.0, index=df.index)
+    bb_mid = bb.bollinger_mavg()
 
-    # voter 1: SMA Trend - benchmark: Is price above 20-day simple average?
-    # Yes (+1), If No (-1)
-    score += np.where(close > sma_20, 1, -1)
-    
-    # voter 2: EMA Trend - benchmark: Is price above 20-day exponential average?
-    # Yes (+1), If No (-1)
-    score += np.where(close > ema_20, 1, -1)
-    
-    # voter 3: WMA Trend - benchmark: Is price above 20-day weighted average?
-    # Yes (+1), If No (-1)
-    score += np.where(close > wma_20, 1, -1)
-    
-    # voter 4: Bollinger Mid - benchmark: Is price in the upper half of the bands?
-    # Yes (+1), If No (-1)
-    score += np.where(close > bb_mid, 1, -1)
-    
-    # step 2.1 volume confimation
-    # If Volume is high (above average), the move is "confirmed".
-    # If Volume is low, the signal is weak.
-    # benchmark: If Vol > Avg, multiply score by 1.2 (Boost); If Vol < Avg, multiply by 0.8 (Dampen).
-    vol_multiplier = np.where(volume > vol_sma_20, 1.2, 0.8)
-    score = score * vol_multiplier
-    
-    # step 4. normalize to [-1,1] range
-    # maximum possible raw score is 4 (4 voters * 1.0). 
-    # with volume boost, max is 4.8. divide by 5 to keep it roughly within -1 to 1.
-    
-    df['Signal_Strength'] = score / 5.0
-    
-    # clip values to ensure they stay strictly between -1 and 1
-    df['Signal_Strength'] = df['Signal_Strength'].clip(-1, 1)
+    df = df.copy()
 
-    # step 5. generate labels from scores
-    conditions = [
-        df['Signal_Strength'] >= 0.5,   # Strong Buy
-        df['Signal_Strength'] <= -0.5   # Strong Sell
-    ]
-    choices = ['BUY', 'SELL']
-    
-    df['Signal'] = np.select(conditions, choices, default='HOLD')
-    
-    return df[['Symbol', 'Close', 'Signal', 'Signal_Strength']]
+    raw_score = pd.Series(0, index=df.index)
+    raw_score += np.where(close > sma_20, 1, -1)
+    raw_score += np.where(close > ema_20, 1, -1)
+    raw_score += np.where(close > wma_20, 1, -1)
+    raw_score += np.where(close > bb_mid, 1, -1)
 
-DB_HOST = os.getenv('DB_HOST')
-DB_PORT = os.getenv('DB_PORT')
-DB_NAME = os.getenv('DB_NAME')
-DB_USER = os.getenv('DB_USER')
-DB_PASSWORD = os.getenv('DB_PASSWORD')
+    volume_multiplier = np.where(volume > vol_sma_20, VOLUME_BOOST, VOLUME_DAMPEN)
 
-engine = create_engine(f'postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}')
+    df["raw_score_ma"] = raw_score
+    df["volume_multiplier_hint"] = volume_multiplier
 
-print("Fetching data from database...")
+    return df[["raw_score_ma", "volume_multiplier_hint"]]
 
-query = f"""
-    SELECT symbol, date, open, high, low, close, volume
-    FROM ohlcv_data
-    WHERE date >= CURRENT_DATE - INTERVAL '{HISTORY_LIMIT_DAYS} days'
-    ORDER BY symbol, date ASC
-"""
 
-df_all = pd.read_sql(query, engine)
-
-df_all.columns = ['Symbol', 'Date', 'Open', 'High', 'Low', 'Close', 'Volume']
-df_all['Date'] = pd.to_datetime(df_all['Date'])
-df_all.set_index('Date', inplace=True)
-
-print(f"Loaded {len(df_all)} rows of data for {df_all['Symbol'].nunique()} symbols.")
-
-results_daily = []
-results_weekly = []
-results_monthly = []
-
-grouped = df_all.groupby('Symbol')
-
-for symbol, df_coin in grouped:
-    # daily
-    d_daily = df_coin.copy()
-    if len(d_daily) < 20: continue # skip if not enough data
-    
-    processed_daily = generate_signals(d_daily)
-    # results_daily.append(processed_daily)
-    # TODO: decide whether to store just last day of data or all historic data
-    # results_daily.append(processed_daily) 
-    results_daily.append(processed_daily.iloc[-1:]) 
-    
+def resample_coin(df_coin: pd.DataFrame, rule: str) -> pd.DataFrame:
     agg_logic = {
-        'Symbol': 'first', 
-        'Open': 'first',
-        'High': 'max',
-        'Low': 'min',
-        'Close': 'last',
-        'Volume': 'sum'
+        "Symbol": "first",
+        "Open": "first",
+        "High": "max",
+        "Low": "min",
+        "Close": "last",
+        "Volume": "sum",
     }
-    
-    # weekly
-    d_weekly = df_coin.resample('W').agg(agg_logic)
-    if len(d_weekly) >= 20:
-        processed_weekly = generate_signals(d_weekly)
-        # TODO: decide whether to store just last day of data or all historic data
-        # results_weekly.append(processed_weekly)
-        results_weekly.append(processed_weekly.iloc[-1:])
+    return df_coin.resample(rule).agg(agg_logic)
 
 
-    # monthly ('ME' is Month End)
-    d_monthly = df_coin.resample('ME').agg(agg_logic)
-    if len(d_monthly) >= 20:
-        processed_monthly = generate_signals(d_monthly)
-        # TODO: decide whether to store just last day of data or all historic data
-        # results_monthly.append(processed_monthly)
-        results_monthly.append(processed_monthly.iloc[-1:])
+def compute_moving_average_frames(df_all: pd.DataFrame) -> dict:
+    results = {"1d": [], "1w": [], "1m": []}
+    grouped = df_all.groupby("Symbol")
 
-print("Saving results...")
+    for symbol, df_coin in tqdm(grouped, desc="moving-avg"):
+        d_daily = df_coin.copy()
+        if len(d_daily) >= 20:
+            processed_daily = compute_moving_average_metrics(d_daily)
+            processed_daily["Symbol"] = symbol
+            processed_daily = processed_daily.reset_index().sort_values("Date")
+            results["1d"].append(processed_daily.tail(1))
 
-# TODO: write in DB
+        d_weekly = resample_coin(df_coin, "W")
+        if len(d_weekly) >= 20:
+            processed_weekly = compute_moving_average_metrics(d_weekly)
+            processed_weekly["Symbol"] = symbol
+            processed_weekly = processed_weekly.reset_index().sort_values("Date")
+            results["1w"].append(processed_weekly.tail(1))
 
-DAY_FILENAME = 'signals-1d-only-last.csv'
-WEEK_FILENAME = 'signals-1w-only-last.csv'
-MONTH_FILENAME = 'signals-1m-only-last.csv'
+        d_monthly = resample_coin(df_coin, "ME")
+        if len(d_monthly) >= 20:
+            processed_monthly = compute_moving_average_metrics(d_monthly)
+            processed_monthly["Symbol"] = symbol
+            processed_monthly = processed_monthly.reset_index().sort_values("Date")
+            results["1m"].append(processed_monthly.tail(1))
 
-if results_daily:
-    pd.concat(results_daily).to_csv(DAY_FILENAME)
-    print(f"{DAY_FILENAME} saved")
+    return {tf: (pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()) for tf, frames in results.items()}
 
-if results_weekly:
-    pd.concat(results_weekly).to_csv(WEEK_FILENAME)
-    print(f"{WEEK_FILENAME} saved")
 
-if results_monthly:
-    pd.concat(results_monthly).to_csv(MONTH_FILENAME)
-    print(f"{MONTH_FILENAME} saved")
+def main():
+    print(
+        "This module now only exposes helpers. Use combine_signals.py to run the full pipeline."
+    )
+
+
+if __name__ == "__main__":
+    main()
     
