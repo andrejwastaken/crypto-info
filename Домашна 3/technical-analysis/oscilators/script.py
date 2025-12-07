@@ -1,183 +1,152 @@
 import pandas as pd
-from sqlalchemy import create_engine
 import pandas_ta as ta
-import os
-import sys
-from urllib.parse import quote_plus
 from tqdm import tqdm
-from dotenv import load_dotenv 
 
-
-load_dotenv() 
-
-db_user = os.getenv('DB_USER')
-db_password = os.getenv('DB_PASSWORD')
-db_host = os.getenv('DB_HOST')
-db_port = os.getenv('DB_PORT')
-db_name = os.getenv('DB_NAME')
 
 HISTORY_LIMIT_DAYS = 3 * 365
 
-encoded_password = quote_plus(db_password)
-connection_str = f'postgresql://{db_user}:{encoded_password}@{db_host}:{db_port}/{db_name}'
-db_connection = create_engine(connection_str)
 
-query = f"""
-SELECT symbol, date, open, high, low, close, volume
-FROM ohlcv_data
-WHERE symbol IN (SELECT symbol FROM coins_metadata) 
-  AND date >= CURRENT_DATE - INTERVAL '{HISTORY_LIMIT_DAYS} days'
-ORDER BY symbol, date ASC
-"""
-
-# Loading data from database
-df = pd.read_sql(query, db_connection)
-df['date'] = pd.to_datetime(df['date'])
-df = df.drop_duplicates(subset=['symbol', 'date'], keep='last')
-df.set_index('date', inplace=True)
-print(f"Loaded {len(df)} rows.")
-
-
-#Helper functions
-def force_unique_columns(df):
+def force_unique_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df.loc[:, ~df.columns.duplicated()]
 
-def resample_data(df, timeframe):
-    agg_dict = {'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum'}
+
+def resample_data(df: pd.DataFrame, timeframe: str) -> pd.DataFrame:
+    agg_dict = {
+        "open": "first",
+        "high": "max",
+        "low": "min",
+        "close": "last",
+        "volume": "sum",
+    }
     try:
         resampled = df.resample(timeframe).agg(agg_dict)
         return resampled.dropna()
-    except:
+    except Exception:
         return df
 
-def process_indicators(df):
-    df = df.loc[:, ~df.columns.duplicated()]
-    if not df.index.is_unique: df = df[~df.index.duplicated(keep='last')]
-    if len(df) < 30: return df
-    
+
+def compute_raw_score(row: pd.Series) -> int:
+    score = 0
     try:
-        #Calculating rsi
-        df['RSI'] = df.ta.rsi(length=14)
-        
-        #Calculating macd
-        macd = df.ta.macd(fast=12, slow=26, signal=9)
-        if macd is not None: df = pd.concat([df, macd], axis=1)
-        
-        #Calculating stoch
-        stoch = df.ta.stoch(k=14, d=3, smooth_k=3)
-        if stoch is not None: df = pd.concat([df, stoch], axis=1)
-        
-        #Calculating adx
-        adx = df.ta.adx(length=14)
-        if adx is not None: df = pd.concat([df, adx], axis=1)
-        
-        #Calculating cci
-        df['CCI'] = df.ta.cci(length=20)
-
-        #Signal strength
-        def get_signal_data(row):
-            score = 0
-            
-            try:
-                if row['RSI'] < 30: score += 1      
-                elif row['RSI'] > 70: score -= 1    
-            except: pass
-
-            try:
-                k = row.get('STOCHk_14_3_3', 50)
-                if k < 20: score += 1
-                elif k > 80: score -= 1
-            except: pass
-
-            try:
-                c = row['CCI']
-                if c < -100: score += 1
-                elif c > 100: score -= 1
-            except: pass
-
-            try:
-                if row['MACD_12_26_9'] > row['MACDs_12_26_9']: score += 1
-                else: score -= 1
-            except: pass
-
-            try:
-                # ADX Check: DMP (Plus) vs DMN (Minus)
-                if row['DMP_14'] > row['DMN_14']: score += 1
-                else: score -= 1
-            except: pass
-
-            # Normalized by 5 indicators
-            strength = score / 5.0
-
-            if strength >= 0.4: label = "BUY"
-            elif strength <= -0.4: label = "SELL"
-            else: label = "HOLD"
-
-            return pd.Series([label, strength])
-
-        df[['Signal', 'Signal_Strength']] = df.apply(get_signal_data, axis=1)
-        
+        if row.get("RSI") is not None:
+            if row["RSI"] < 30:
+                score += 1
+            elif row["RSI"] > 70:
+                score -= 1
     except Exception:
         pass
-    
+
+    try:
+        k = row.get("STOCHk_14_3_3", 50)
+        if k < 20:
+            score += 1
+        elif k > 80:
+            score -= 1
+    except Exception:
+        pass
+
+    try:
+        c = row.get("CCI")
+        if c is not None:
+            if c < -100:
+                score += 1
+            elif c > 100:
+                score -= 1
+    except Exception:
+        pass
+
+    try:
+        if row.get("MACD_12_26_9") is not None and row.get("MACDs_12_26_9") is not None:
+            if row["MACD_12_26_9"] > row["MACDs_12_26_9"]:
+                score += 1
+            else:
+                score -= 1
+    except Exception:
+        pass
+
+    try:
+        if row.get("DMP_14") is not None and row.get("DMN_14") is not None:
+            if row["DMP_14"] > row["DMN_14"]:
+                score += 1
+            else:
+                score -= 1
+    except Exception:
+        pass
+
+    return score
+
+
+def process_indicators(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.loc[:, ~df.columns.duplicated()]
+    if not df.index.is_unique:
+        df = df[~df.index.duplicated(keep="last")]
+    if len(df) < 30:
+        return df
+
+    try:
+        df["RSI"] = df.ta.rsi(length=14)
+        macd = df.ta.macd(fast=12, slow=26, signal=9)
+        if macd is not None:
+            df = pd.concat([df, macd], axis=1)
+        stoch = df.ta.stoch(k=14, d=3, smooth_k=3)
+        if stoch is not None:
+            df = pd.concat([df, stoch], axis=1)
+        adx = df.ta.adx(length=14)
+        if adx is not None:
+            df = pd.concat([df, adx], axis=1)
+        df["CCI"] = df.ta.cci(length=20)
+        df["raw_score_osc"] = df.apply(compute_raw_score, axis=1)
+        df = df[["raw_score_osc"]]
+    except Exception:
+        pass
+
     return force_unique_columns(df)
 
-#Processing oscilators
 
-all_daily = []
-all_weekly = []
-all_monthly = []
+def compute_oscillator_frames(df: pd.DataFrame) -> dict:
+    results = {"1d": [], "1w": [], "1m": []}
+    unique_symbols = df["symbol"].unique()
 
-unique_symbols = df['symbol'].unique()
+    for symbol in tqdm(unique_symbols):
+        try:
+            coin_df = df[df["symbol"] == symbol].copy().sort_index()
 
-for symbol in tqdm(unique_symbols):
-    try:
-        coin_df = df[df['symbol'] == symbol].copy().sort_index()
+            # Daily
+            d_df = process_indicators(coin_df.copy())
+            d_df["symbol"] = symbol
+            d_df = d_df.reset_index().rename(columns={"index": "date"})
+            d_df = d_df.sort_values("date")
+            if "raw_score_osc" in d_df.columns and not d_df.empty:
+                results["1d"].append(d_df.tail(1))
 
-        #Daily
-        d_df = process_indicators(coin_df.copy())
-        d_df['symbol'] = symbol
-        d_df = d_df.reset_index()
-        if 'Signal' in d_df.columns:
-            all_daily.append(d_df[['date', 'symbol', 'close', 'Signal', 'Signal_Strength']])
+            # Weekly
+            w_df = resample_data(coin_df, "W")
+            w_df = process_indicators(w_df)
+            w_df["symbol"] = symbol
+            w_df = w_df.reset_index().rename(columns={"index": "date"})
+            w_df = w_df.sort_values("date")
+            if "raw_score_osc" in w_df.columns and not w_df.empty:
+                results["1w"].append(w_df.tail(1))
 
-        #Weekly
-        w_df = resample_data(coin_df, 'W')
-        w_df = process_indicators(w_df)
-        w_df['symbol'] = symbol
-        w_df = w_df.reset_index()
-        if 'Signal' in w_df.columns:
-            all_weekly.append(w_df[['date', 'symbol', 'close', 'Signal', 'Signal_Strength']])
+            # Monthly
+            m_df = resample_data(coin_df, "ME")
+            m_df = process_indicators(m_df)
+            m_df["symbol"] = symbol
+            m_df = m_df.reset_index().rename(columns={"index": "date"})
+            m_df = m_df.sort_values("date")
+            if "raw_score_osc" in m_df.columns and not m_df.empty:
+                results["1m"].append(m_df.tail(1))
+        except Exception:
+            pass
 
-        #Monthly
-        m_df = resample_data(coin_df, 'ME')
-        m_df = process_indicators(m_df)
-        m_df['symbol'] = symbol
-        m_df = m_df.reset_index()
-        if 'Signal' in m_df.columns:
-            all_monthly.append(m_df[['date', 'symbol', 'close', 'Signal', 'Signal_Strength']])
-
-    except: pass
+    return {tf: (pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()) for tf, frames in results.items()}
 
 
+def main():
+    print(
+        "This script now exposes functions. Use combine_signals.py to orchestrate DB access, scoring, and outputs."
+    )
 
-output_folder = "crypto_final_csvs"
-os.makedirs(output_folder, exist_ok=True)
 
-def save_formatted_csv(data_list, filename):
-    if not data_list: return
-    
-    final_df = pd.concat(data_list, ignore_index=True)
-    final_df = final_df.dropna(subset=['Signal_Strength'])
-    final_df = final_df.sort_values(by=['date', 'symbol'])
-    final_df.columns = ['Date', 'Symbol', 'Close', 'Signal', 'Signal_Strength']
-    
-    path = os.path.join(output_folder, filename)
-    final_df.to_csv(path, index=False)
-    print(f"Saved {filename} ({len(final_df)} rows)")
-
-save_formatted_csv(all_daily, "daily_signals.csv")
-save_formatted_csv(all_weekly, "weekly_signals.csv")
-save_formatted_csv(all_monthly, "monthly_signals.csv")
-
-print("Done! Check 'crypto_final_csvs' folder.")
+if __name__ == "__main__":
+    main()
