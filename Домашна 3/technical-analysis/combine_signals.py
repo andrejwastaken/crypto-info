@@ -88,7 +88,7 @@ def normalize_scores(df: pd.DataFrame, volume_boost: float, volume_dampen: float
     df["combined_raw_score"] = df["raw_score_osc"] + df["raw_score_ma"]
 
     df["normalized_score"] = df["combined_raw_score"] / max_possible.replace(0, np.nan)
-    df["normalized_score"] = df["normalized_score"].clip(-1, 1).fillna(0)
+    df["normalized_score"] = df["normalized_score"].clip(-1, 1).fillna(0).round(3)
     df["target"] = df["normalized_score"].apply(compute_target)
 
     return df
@@ -164,6 +164,7 @@ def save_outputs(frames: dict[str, pd.DataFrame]):
             print(f"Skipping {tf} due to missing columns: {missing}")
             continue
         df = df[cols].copy()
+        df["Date"] = df["Date"].dt.date
         df.columns = [c.lower() for c in df.columns]
         table_name = table_names[tf]
         df.to_sql(table_name, engine, if_exists="replace", index=False, chunksize=10000)
