@@ -71,7 +71,7 @@ def download_one(coin: Dict, period: Literal["max", "1m"]) -> pd.DataFrame:
                             seen[c] = 1
                     df.columns = new_cols
 
-                desired_columns = ["Adj close", "close", "high", "low", "open", "volume", "date"]
+                desired_columns = ["close", "high", "low", "open", "volume", "date"]
                 existing_columns = [c for c in desired_columns if c in df.columns]
                 
                 df = df[existing_columns]
