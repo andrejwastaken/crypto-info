@@ -100,17 +100,17 @@ def scrape_items(html: str) -> List[dict]:
 	return items
 
 
-def main() -> None:
+def scrape_yfinance_news() -> pd.DataFrame:
 	url = urljoin(BASE_URL, TARGET_PATH)
 	html = fetch_html(url)
 	data = scrape_items(html)
 
 	df = pd.DataFrame(data)
-	if not df.empty:
-		df.to_csv(CSV_PATH, index=False)
-		print(f"Saved {len(df)} rows to {CSV_PATH}")
-	else:
-		print("No items found; CSV not written.")
+	return df
+
+
+def main() -> None:
+	print("This script exposes scrape_yfinance_news(). Run scrapers-aggregator.py to execute.")
 
 
 if __name__ == "__main__":

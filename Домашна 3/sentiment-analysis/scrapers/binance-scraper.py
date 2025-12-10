@@ -142,7 +142,7 @@ def scrape_category(key):
     finally:
         driver.quit()
 
-def main():
+def scrape_binance_news():
     all_data = []
 
     max_workers = 4 
@@ -157,11 +157,10 @@ def main():
         df = df.drop_duplicates(subset=['link'])
     
     print("scraping complete")
-    print(df.head())
-    
-    filename = "binance-news.csv"
-    df.to_csv(filename, index=False)
-    print(f"data saved to {filename}")
+    return df
+
+def main():
+    print("This script exposes scrape_binance_news(). Run scrapers-aggregator.py to execute.")
 
 if __name__ == "__main__":
     main()
