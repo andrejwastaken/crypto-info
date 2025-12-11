@@ -6,23 +6,31 @@ export const formatNumber = (num: number): string => {
 
 	// large numbers: truncate the zeroes
 	if (absNum >= 1_000_000_000_000) {
-		return sign + (absNum / 1_000_000_000_000).toFixed(2) + "T";
+		return sign + (absNum / 1_000_000_000_000).toFixed(3) + "T";
 	}
 	if (absNum >= 1_000_000_000) {
-		return sign + (absNum / 1_000_000_000).toFixed(2) + "B";
+		return sign + (absNum / 1_000_000_000).toFixed(3) + "B";
 	}
 	if (absNum >= 1_000_000) {
-		return sign + (absNum / 1_000_000).toFixed(2) + "M";
+		return sign + (absNum / 1_000_000).toFixed(3) + "M";
 	}
 	if (absNum >= 1_000) {
-		return sign + (absNum / 1_000).toFixed(2) + "K";
+		return sign + (absNum / 1_000).toFixed(3) + "K";
 	}
 
-	// numbers >= 1: show with 2 decimal places and thousand separators
-	if (absNum >= 1) {
+	// numbers >= 10: show with 3 decimal places and thousand separators
+	if (absNum >= 10) {
+		return num.toLocaleString(undefined, {
+			minimumFractionDigits: 3,
+			maximumFractionDigits: 3,
+		});
+	}
+
+	// numbers >= 0.0001: show with up to 5 decimal places
+	if (absNum >= 0.0001) {
 		return num.toLocaleString(undefined, {
 			minimumFractionDigits: 2,
-			maximumFractionDigits: 2,
+			maximumFractionDigits: 5,
 		});
 	}
 
@@ -42,11 +50,19 @@ export const formatPrice = (num: number): string => {
 
 	const absNum = Math.abs(num);
 
-	// numbers >= 1: show with 2 decimal places and thousand separators
-	if (absNum >= 1) {
+	// numbers >= 10: show with 3 decimal places and thousand separators
+	if (absNum >= 10) {
+		return num.toLocaleString(undefined, {
+			minimumFractionDigits: 3,
+			maximumFractionDigits: 3,
+		});
+	}
+
+	// numbers >= 0.0001: show with up to 5 decimal places
+	if (absNum >= 0.0001) {
 		return num.toLocaleString(undefined, {
 			minimumFractionDigits: 2,
-			maximumFractionDigits: 2,
+			maximumFractionDigits: 5,
 		});
 	}
 
