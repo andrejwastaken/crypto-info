@@ -12,6 +12,7 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
+import NewsSection from "../components/NewsSection";
 import { formatNumber, formatPrice } from "../helpers";
 import type { CoinStats, OhlcvData } from "../types";
 
@@ -33,7 +34,7 @@ const SIGNAL_ZONES = [
 		label: "Strong Sell",
 		color: "text-red-600",
 		gaugeColor: "#DC2626",
-		showTick: true,
+		showTick: false,
 	},
 	{
 		limit: 35,
@@ -54,7 +55,7 @@ const SIGNAL_ZONES = [
 		label: "Buy",
 		color: "text-green-500",
 		gaugeColor: "#22C55E",
-		showTick: true,
+		showTick: false,
 	},
 	{
 		limit: 100,
@@ -149,6 +150,12 @@ const CoinPage = () => {
 
 	useEffect(() => {
 		fetchTechnicalAnalysis("DAY");
+	}, [symbol]);
+
+	useEffect(() => {
+		if (typeof window !== "undefined") {
+			window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+		}
 	}, [symbol]);
 
 	// fetch chart data when period changes
@@ -275,12 +282,12 @@ const CoinPage = () => {
 					</div>
 				) : (
 					<>
-						<h1 className="text-3xl font-light text-gray-800 mb-2">
+						<h1 className="text-3xl font-semibold text-gray-800 mb-2">
 							{coinName} ({symbol})
 						</h1>
 						{coinStats && (
 							<div className="flex items-baseline gap-3">
-								<span className="text-4xl font-semibold text-gray-900">
+								<span className="text-4xl font-bold text-gray-900">
 									{formatPrice(coinStats.close ?? 0)}
 								</span>
 								<span
@@ -333,7 +340,7 @@ const CoinPage = () => {
 							</div>
 						) : (
 							<>
-								<div className="relative w-full flex justify-center items-end overflow-hidden pb-2">
+								<div className="relative w-full flex justify-center items-end overflow-hidden pb-4">
 									<GaugeComponent
 										type="semicircle"
 										arc={{
@@ -344,9 +351,9 @@ const CoinPage = () => {
 												limit: zone.limit,
 												color: zone.gaugeColor,
 												showTick: zone.showTick,
-												tooltip: {
-													text: zone.label,
-												},
+												// tooltip: {
+												// 	text: zone.label,
+												// },
 											})),
 										}}
 										pointer={{
@@ -371,14 +378,33 @@ const CoinPage = () => {
 										</span>
 									</div>
 								</div>
-								<div className="text-center mt-2 text-xs text-gray-400">
-									Score: {currentScore.toFixed(2)}
+								<div className="flex items-center justify-center gap-1 mt-2 text-xs text-gray-400">
+									<span>Score: {currentScore.toFixed(2)}</span>
+									<div className="group/tooltip relative flex items-center">
+										<svg
+											className="w-3 h-3 cursor-help"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path
+												strokeLinecap="round"
+												strokeLinejoin="round"
+												strokeWidth="2"
+												d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+											/>
+										</svg>
+										{/* todo: change page name */}
+										<div className="hidden group-hover/tooltip:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white rounded text-[10px] z-10 shadow-lg text-center">
+											The signal score is calculated using oscilator and moving
+											average metrics over the specified period. This is not
+											financial advice. For more details, go to the `XXXXX`
+											page.
+										</div>
+									</div>
 								</div>
 							</>
 						)}
-						<div className="text-center text-[10px] text-gray-400 underline">
-							How do we calculate this?
-						</div>
 
 						{statsLoading ? (
 							<div className="animate-pulse space-y-4 mt-6">
@@ -642,6 +668,8 @@ const CoinPage = () => {
 					</div>
 				</div>
 			</div>
+
+			<NewsSection />
 		</div>
 	);
 };

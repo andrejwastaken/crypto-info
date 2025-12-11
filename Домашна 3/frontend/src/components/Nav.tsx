@@ -117,6 +117,9 @@ const Nav = () => {
 				<Link to="/about" className="hover:underline">
 					About us
 				</Link>
+				{/* <Link to="/" className="hover:underline">
+					How it works
+				</Link> */}
 			</div>
 		</nav>
 	);
