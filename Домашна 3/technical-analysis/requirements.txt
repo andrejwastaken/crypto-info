@@ -1,8 +1,9 @@
+dotenv
 numpy
 pandas
 psycopg2-binary
 python-dotenv
 SQLAlchemy
+ta
 pandas_ta
 tqdm
-dotenv

@@ -166,6 +166,7 @@ def save_outputs(frames: dict[str, pd.DataFrame]):
         df = df[cols].copy()
         df["Date"] = df["Date"].dt.date
         df.columns = [c.lower() for c in df.columns]
+        df.insert(0, "id", range(1, len(df) + 1))
         table_name = table_names[tf]
         df.to_sql(table_name, engine, if_exists="replace", index=False, chunksize=10000)
         print(f"Saved {len(df)} rows to table '{table_name}'")
