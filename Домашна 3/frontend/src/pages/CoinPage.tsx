@@ -17,6 +17,7 @@ import type { CoinStats, OhlcvData } from "../types";
 
 type TimePeriod = "7D" | "1M" | "3M" | "1Y" | "Max";
 type ChartType = "line" | "candle";
+type AnalysisTimePeriod = "DAY" | "WEEK" | "MONTH";
 
 const periodToSize: Record<TimePeriod, number | null> = {
 	"7D": 7,
@@ -73,10 +74,15 @@ const CoinPage = () => {
 	const [chartLoading, setChartLoading] = useState(true);
 	const [statsLoading, setStatsLoading] = useState(true);
 
-	const technicalAnalysis = {
-		score: 0.13,
-		signal: "Not important",
-	};
+	const [taScores, setTaScores] = useState<
+		Record<AnalysisTimePeriod, number | null>
+	>({
+		DAY: null,
+		WEEK: null,
+		MONTH: null,
+	});
+	const [taPeriod, setTaPeriod] = useState<AnalysisTimePeriod>("DAY");
+	const [taLoading, setTaLoading] = useState(false);
 
 	const getSignalInfo = (score: number) => {
 		const scorePercent = score * 100;
@@ -89,7 +95,10 @@ const CoinPage = () => {
 		);
 	};
 
-	const signalInfo = getSignalInfo(technicalAnalysis.score);
+	const currentScore = taScores[taPeriod] ?? 0;
+	// map [-1, 1] range to [0, 1] for the gauge and signal zones
+	const mappedScore = (currentScore + 1) / 2;
+	const signalInfo = getSignalInfo(mappedScore);
 
 	// fetch stats only once on initial load
 	useEffect(() => {
@@ -113,6 +122,33 @@ const CoinPage = () => {
 		};
 
 		fetchStats();
+	}, [symbol]);
+
+	const fetchTechnicalAnalysis = async (periodToFetch: AnalysisTimePeriod) => {
+		if (!symbol) return;
+
+		setTaPeriod(periodToFetch);
+		if (taScores[periodToFetch] !== null) return;
+
+		setTaLoading(true);
+		try {
+			const res = await fetch(
+				`http://localhost:8080/api/ta/${symbol}?period=${periodToFetch}`
+			);
+			if (res.ok) {
+				const data = await res.json();
+				const score = data;
+				setTaScores((prev) => ({ ...prev, [periodToFetch]: score }));
+			}
+		} catch (error) {
+			console.error("Failed to fetch TA:", error);
+		} finally {
+			setTaLoading(false);
+		}
+	};
+
+	useEffect(() => {
+		fetchTechnicalAnalysis("DAY");
 	}, [symbol]);
 
 	// fetch chart data when period changes
@@ -272,48 +308,75 @@ const CoinPage = () => {
 						<h3 className="text-sm font-semibold text-gray-500 mb-4 uppercase tracking-wider text-center">
 							Technical Analysis
 						</h3>
-						<div className="relative w-full flex justify-center items-end overflow-hidden pb-2">
-							<GaugeComponent
-								type="semicircle"
-								arc={{
-									width: 0.2,
-									padding: 0.005,
-									cornerRadius: 1,
-									subArcs: SIGNAL_ZONES.map((zone) => ({
-										limit: zone.limit,
-										color: zone.gaugeColor,
-										showTick: zone.showTick,
-										tooltip: {
-											text: zone.label,
-										},
-									})),
-								}}
-								pointer={{
-									color: "#345243",
-									length: 0.75,
-									width: 20,
-								}}
-								labels={{
-									valueLabel: { hide: true },
-									tickLabels: {
-										hideMinMax: true,
-									},
-								}}
-								value={technicalAnalysis.score * 100}
-								minValue={0}
-								maxValue={100}
-							/>
 
-							<div className="absolute bottom-0 left-0 w-full text-center -mb-0.5">
-								<span className={`text-lg font-bold ${signalInfo.color}`}>
-									{signalInfo.label}
+						<div className="flex justify-center gap-2 mb-4">
+							{(["DAY", "WEEK", "MONTH"] as AnalysisTimePeriod[]).map((p) => (
+								<button
+									key={p}
+									onClick={() => fetchTechnicalAnalysis(p)}
+									className={`px-3 py-1 text-xs rounded-lg border border-gray-200 ${
+										taPeriod === p
+											? "bg-gray-100 border-gray-400 font-medium"
+											: "text-gray-600 hover:bg-gray-100 hover:cursor-pointer"
+									}`}
+								>
+									{p === "DAY" ? "1D" : p === "WEEK" ? "1W" : "1M"}
+								</button>
+							))}
+						</div>
+
+						{taLoading ? (
+							<div className="h-40 flex items-center justify-center">
+								<span className="text-gray-400 text-sm">
+									Loading analysis...
 								</span>
 							</div>
-						</div>
-						<div className="text-center mt-2 text-xs text-gray-400">
-							Score: {technicalAnalysis.score.toFixed(2)}
-						</div>
-						<div className="text-center text-[10px] text-gray-400">
+						) : (
+							<>
+								<div className="relative w-full flex justify-center items-end overflow-hidden pb-2">
+									<GaugeComponent
+										type="semicircle"
+										arc={{
+											width: 0.2,
+											padding: 0.005,
+											cornerRadius: 1,
+											subArcs: SIGNAL_ZONES.map((zone) => ({
+												limit: zone.limit,
+												color: zone.gaugeColor,
+												showTick: zone.showTick,
+												tooltip: {
+													text: zone.label,
+												},
+											})),
+										}}
+										pointer={{
+											color: "#345243",
+											length: 0.75,
+											width: 20,
+										}}
+										labels={{
+											valueLabel: { hide: true },
+											tickLabels: {
+												hideMinMax: true,
+											},
+										}}
+										value={mappedScore * 100}
+										minValue={0}
+										maxValue={100}
+									/>
+
+									<div className="absolute bottom-0 left-0 w-full text-center -mb-0.5">
+										<span className={`text-lg font-bold ${signalInfo.color}`}>
+											{signalInfo.label}
+										</span>
+									</div>
+								</div>
+								<div className="text-center mt-2 text-xs text-gray-400">
+									Score: {currentScore.toFixed(2)}
+								</div>
+							</>
+						)}
+						<div className="text-center text-[10px] text-gray-400 underline">
 							How do we calculate this?
 						</div>
 
@@ -405,10 +468,10 @@ const CoinPage = () => {
 						<div className="flex items-center gap-2">
 							<button
 								onClick={() => setChartType("line")}
-								className={`p-2 rounded border ${
+								className={`p-2 rounded-lg border border-gray-200 ${
 									chartType === "line"
 										? "bg-gray-100 border-gray-400"
-										: "border-gray-300 hover:cursor-pointer"
+										: "text-gray-600 hover:bg-gray-100 hover:cursor-pointer"
 								}`}
 								title="Line chart"
 							>
@@ -428,10 +491,10 @@ const CoinPage = () => {
 									setChartType("candle");
 									if (period === "7D") setPeriod("1M");
 								}}
-								className={`p-2 rounded border ${
+								className={`p-2 rounded-lg border border-gray-200 ${
 									chartType === "candle"
 										? "bg-gray-100 border-gray-400"
-										: "border-gray-300 hover:cursor-pointer"
+										: "text-gray-600 hover:bg-gray-100 hover:cursor-pointer"
 								}`}
 								title="Candlestick chart"
 							>

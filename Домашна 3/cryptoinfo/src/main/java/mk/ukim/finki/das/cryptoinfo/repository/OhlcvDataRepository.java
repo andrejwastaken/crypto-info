@@ -2,7 +2,7 @@ package mk.ukim.finki.das.cryptoinfo.repository;
 
 import java.time.LocalDate;
 
-import mk.ukim.finki.das.cryptoinfo.model.LowHigh;
+import mk.ukim.finki.das.cryptoinfo.model.LowHighProjection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -27,5 +27,5 @@ public interface OhlcvDataRepository extends JpaRepository<OhlcvData, Long> {
     WHERE symbol = :symbol
     AND date >= CURRENT_DATE - INTERVAL '365 days'
     """, nativeQuery = true)
-    LowHigh find52WeekLowHigh(@Param("symbol") String symbol);
+    LowHighProjection find52WeekLowHigh(@Param("symbol") String symbol);
 }

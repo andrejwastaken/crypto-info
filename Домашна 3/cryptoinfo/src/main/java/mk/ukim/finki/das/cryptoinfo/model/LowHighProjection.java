@@ -1,6 +1,6 @@
 package mk.ukim.finki.das.cryptoinfo.model;
 
-public interface LowHigh {
+public interface LowHighProjection {
     Double getLow();
     Double getHigh();
 }

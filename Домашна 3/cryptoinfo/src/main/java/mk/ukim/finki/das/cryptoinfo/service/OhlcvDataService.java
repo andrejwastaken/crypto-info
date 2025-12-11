@@ -2,7 +2,7 @@ package mk.ukim.finki.das.cryptoinfo.service;
 
 import java.time.LocalDate;
 
-import mk.ukim.finki.das.cryptoinfo.model.LowHigh;
+import mk.ukim.finki.das.cryptoinfo.model.LowHighProjection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -38,7 +38,7 @@ public class OhlcvDataService {
             return null;
         }
         
-        LowHigh lowHigh = repository.find52WeekLowHigh(symbol);
+        LowHighProjection lowHigh = repository.find52WeekLowHigh(symbol);
 
         Double low52w = lowHigh != null && lowHigh.getLow() != null ? lowHigh.getLow() : null;
         Double high52w = lowHigh != null && lowHigh.getHigh() != null ? lowHigh.getHigh() : null;
