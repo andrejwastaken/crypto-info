@@ -11,7 +11,8 @@ def load_module(name: str, path: Path):
     spec.loader.exec_module(module)
     return module
 
-def main():
+def scrape_all_news():
+    """Scrape news from all sources and return combined dataframe"""
     base_dir = Path(__file__).parent
     binance_path = base_dir / "binance-scraper.py"
     yfinance_path = base_dir / "yfinance-scraper.py"
@@ -55,11 +56,16 @@ def main():
             # sort by date descending
             combined_df = combined_df.sort_values(by='date', ascending=False)
 
-        output_file = "news.csv"
-        combined_df.to_csv(output_file, index=False)
-        print(f"\nSuccessfully combined {len(combined_df)} rows into {output_file}")
+        print(f"\nSuccessfully combined {len(combined_df)} rows from all sources")
+        return combined_df
     else:
         print("\nNo data collected from any scraper.")
+        return pd.DataFrame()
 
 if __name__ == "__main__":
-    main()
+    # If run directly, still save to CSV for testing
+    df = scrape_all_news()
+    if not df.empty:
+        output_file = "news.csv"
+        df.to_csv(output_file, index=False)
+        print(f"Saved to {output_file}")
