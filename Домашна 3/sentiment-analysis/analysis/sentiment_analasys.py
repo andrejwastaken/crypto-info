@@ -321,7 +321,7 @@ try:
         img_src TEXT,
         sentiment_label VARCHAR(20),
         sentiment_score FLOAT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      
     );
     """
     cursor.execute(create_table_query)
