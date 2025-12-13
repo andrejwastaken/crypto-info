@@ -1,5 +1,11 @@
 pandas
-dateparser
+numpy
+transformers
+torch
+scikit-learn
+tqdm
+psycopg2-binary
+python-dotenv
 dateparser
 bs4
 selenium
