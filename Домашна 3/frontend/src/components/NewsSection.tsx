@@ -332,7 +332,7 @@ const NewsSection = ({ symbol }: NewsSectionProps) => {
 						className={`px-6 py-2 text-sm font-medium rounded-md border transition-colors ${
 							loadingMore
 								? "bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed"
-								: "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-150 hover:cursor-pointer"
+								: "bg-gray-100 text-gray-700 border-gray-300 hover:border-gray-200 hover:cursor-pointer"
 						}`}
 					>
 						{loadingMore ? "Loading..." : "See More"}

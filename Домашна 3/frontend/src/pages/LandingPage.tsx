@@ -79,10 +79,10 @@ const LandingPage = () => {
 							setSortOrder("desc");
 							setCurrentPage(0);
 						}}
-						className={`px-3 py-2 text-sm border rounded-md transition-colors ${
+						className={`px-3 py-1 text-sm rounded-lg border border-gray-200 ${
 							sortOrder === "desc"
-								? "bg-blue-500 text-white border-blue-500"
-								: "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 cursor-pointer"
+								? "bg-gray-100 border-gray-400"
+								: "text-gray-600 hover:bg-gray-100 hover:cursor-pointer"
 						}`}
 					>
 						↓ Desc
@@ -92,10 +92,10 @@ const LandingPage = () => {
 							setSortOrder("asc");
 							setCurrentPage(0);
 						}}
-						className={`px-3 py-2 text-sm border rounded-md transition-colors ${
+						className={`px-3 py-1 text-sm rounded-lg border border-gray-200 ${
 							sortOrder === "asc"
-								? "bg-blue-500 text-white border-blue-500"
-								: "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 cursor-pointer"
+								? "bg-gray-100 border-gray-400"
+								: "text-gray-600 hover:bg-gray-100 hover:cursor-pointer"
 						}`}
 					>
 						↑ Asc
@@ -202,14 +202,14 @@ const LandingPage = () => {
 							<button
 								onClick={() => setCurrentPage(0)}
 								disabled={currentPage === 0}
-								className="px-3 py-1 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+								className="px-3 py-1 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 hover:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
 							>
 								First
 							</button>
 							<button
 								onClick={() => setCurrentPage((p) => p - 1)}
 								disabled={currentPage === 0}
-								className="px-3 py-1 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+								className="px-3 py-1 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 hover:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
 							>
 								Prev
 							</button>
@@ -221,14 +221,14 @@ const LandingPage = () => {
 							<button
 								onClick={() => setCurrentPage((p) => p + 1)}
 								disabled={currentPage >= totalPages - 1}
-								className="px-3 py-1 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+								className="px-3 py-1 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 hover:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
 							>
 								Next
 							</button>
 							<button
 								onClick={() => setCurrentPage(totalPages - 1)}
 								disabled={currentPage >= totalPages - 1}
-								className="px-3 py-1 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+								className="px-3 py-1 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 hover:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
 							>
 								Last
 							</button>
