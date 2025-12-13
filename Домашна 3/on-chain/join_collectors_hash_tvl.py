@@ -78,14 +78,15 @@ def join_csvs():
     
     final_df = final_df.fillna(0)
 
+    final_df['symbol'] = final_df['symbol'].apply(lambda x: f"{x}-USD" if not str(x).endswith("-USD") else x)
+
   
     final_df.sort_values(by=['symbol', 'date'], inplace=True)
 
- 
-    final_df.to_csv(output_file, index=False)
-    
-    print(f"\nSaved to {output_file}")
-
+    return final_df
 
 if __name__ == "__main__":
-    join_csvs()
+    df = join_csvs()
+    if df is not None and not df.empty:
+        df.to_csv("joined_crypto_data.csv", index=False)
+        print(f"\nSaved to joined_crypto_data.csv")

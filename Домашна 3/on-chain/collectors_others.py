@@ -36,21 +36,7 @@ def get_engine():
     _db_engine = create_engine(connection_str, pool_size=10, max_overflow=20)
     return _db_engine
 
-def init_db():
-    engine = get_engine()
-    create_table_sql = """
-    CREATE TABLE IF NOT EXISTS on_chain_sentiment_predictions (
-        id SERIAL PRIMARY KEY,
-        symbol VARCHAR(20) NOT NULL,
-        date DATE NOT NULL,
-        predicted_close NUMERIC,
-        predicted_change_pct NUMERIC
-    );
-    """
-    with engine.connect() as conn:
-        conn.execute(text(create_table_sql))
-        conn.commit()
-    print("Database table checked/created.")
+
 
 def get_all_tickers():
     engine = get_engine()
@@ -194,8 +180,7 @@ def fetch_slug_data(slug):
     all_data.fillna(0, inplace=True)
     return all_data
 
-def main():
-    init_db()
+def get_santiment_data():
     df_projects = san.get("projects/all")
     tickers = get_all_tickers()
     tickers_to_slugs = map_tickers_to_slugs(tickers, df_projects)
@@ -211,10 +196,13 @@ def main():
     if all_results:
         final_df = pd.concat(all_results, ignore_index=True)
         final_df.sort_values(['ticker', 'datetime'], inplace=True)
-        final_df.to_csv("onchain_all.csv", index=False)
-        print(f"Saved combined CSV with {len(final_df)} rows")
+        return final_df
     else:
         print("No data to save.")
+        return pd.DataFrame()
 
 if __name__ == "__main__":
-    main()
+    df = get_santiment_data()
+    if not df.empty:
+        df.to_csv("onchain_all.csv", index=False)
+        print(f"Saved combined CSV with {len(df)} rows")
