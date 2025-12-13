@@ -4,3 +4,6 @@ dateparser
 bs4
 selenium
 webdriver_manager
+transformers
+scikit-learn
+torch
