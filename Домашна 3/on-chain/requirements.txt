@@ -1,6 +1,8 @@
+pandas
 python-dotenv
 requests
-pandas
 sanpy
 SQLAlchemy
 psycopg2-binary
+coinmetrics-api-client
+scikit-learn
