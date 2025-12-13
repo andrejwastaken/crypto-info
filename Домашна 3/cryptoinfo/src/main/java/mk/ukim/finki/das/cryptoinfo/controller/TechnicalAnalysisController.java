@@ -1,7 +1,6 @@
 package mk.ukim.finki.das.cryptoinfo.controller;
 
 import jakarta.validation.constraints.NotNull;
-import jakarta.websocket.server.PathParam;
 import mk.ukim.finki.das.cryptoinfo.model.TechnicalAnalysisTimePeriod;
 import mk.ukim.finki.das.cryptoinfo.service.TechnicalAnalysisService;
 import org.springframework.http.ResponseEntity;
