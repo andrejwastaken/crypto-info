@@ -2,6 +2,8 @@ package mk.ukim.finki.das.cryptoinfo.service;
 
 import mk.ukim.finki.das.cryptoinfo.model.TextSentiment;
 import mk.ukim.finki.das.cryptoinfo.repository.TextSentimentRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -18,8 +20,8 @@ public class TextSentimentService {
         return textSentimentRepository.findAll();
     }
 
-    public List<TextSentiment> getNewsBySymbol(String symbol){
-        return textSentimentRepository.findTopBySymbolPriority(symbol);
+    public Page<TextSentiment> getNewsBySymbol(String symbol, Pageable pageable){
+        return textSentimentRepository.findTopBySymbolPriority(symbol, pageable);
     }
 
 

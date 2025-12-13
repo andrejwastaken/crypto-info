@@ -1,68 +1,44 @@
 import { formatDistanceToNow, parseISO } from "date-fns";
+import { useEffect, useState } from "react";
 
 export interface NewsArticle {
+	id: number;
 	title: string;
 	img_src: string;
 	symbols: string[];
 	link: string;
 	date: string;
 	sentiment: "Positive" | "Negative" | "Neutral";
+	score: number;
 }
 
-const MOCK_NEWS: NewsArticle[] = [
-	{
-		title: "GameStop’s $500m Bitcoin bet takes games retailer on wild ride",
-		img_src: "/logo.png",
-		symbols: ["COIN-USD", "BTC-USD"],
-		link: "https://finance.yahoo.com/news/gamestop-500m-bitcoin-bet-takes-112435594.html",
-		date: "2025-12-10 21:22:48.151169",
-		sentiment: "Positive",
-	},
-	{
-		title:
-			"Donald Trump Crypto Video Game Is Almost Here — Can It Revive His Dying Memecoin?",
-		img_src: "/logo.png",
-		symbols: ["RANDOM-USD"],
-		link: "https://finance.yahoo.com/news/donald-trump-crypto-video-game-113010329.html",
-		date: "2025-12-10 16:22:48.148658",
-		sentiment: "Neutral",
-	},
-	{
-		title:
-			"Crypto Markets Today: Fed Rate-Cut Hopes Lift BTC, ETH as Traders Brace for Volatility",
-		img_src: "/logo.png",
-		symbols: ["BTC-USD", "ETH-USD"],
-		link: "https://finance.yahoo.com/news/crypto-markets-today-fed-rate-113037363.html",
-		date: "2025-12-09 13:29:48.146113",
-		sentiment: "Positive",
-	},
-	{
-		title: "How Bitcoin Could Help You Retire a Millionaire",
-		img_src: "/logo.png",
-		symbols: ["BTC-USD"],
-		link: "https://finance.yahoo.com/news/bitcoin-could-help-retire-millionaire-113500287.html",
-		date: "2025-12-10 21:22:48.143716",
-		sentiment: "Positive",
-	},
-	{
-		title:
-			"Metaplanet Stock Jumps 12% as mNAV Climbs to 1.17, Highest Level Since Crypto Crisis",
-		img_src: "/logo.png",
-		symbols: ["BTC-USD"],
-		link: "https://finance.yahoo.com/news/metaplanet-stock-jumps-12-mnav-114111853.html",
-		date: "2025-12-10 21:22:48.141098",
-		sentiment: "Positive",
-	},
-	{
-		title:
-			"Crypto News Today, December 10 – ETH USD Back Over $3.3K as Solana Eco Coins Like Pippin and HumidiFi Surge Hard",
-		img_src: "/logo.png",
-		symbols: ["BTC-USD", "SOL-USD"],
-		link: "https://finance.yahoo.com/news/crypto-news-today-december-10-115431345.html",
-		date: "2025-10-30 21:22:48.138569",
-		sentiment: "Negative",
-	},
-];
+interface PageInfo {
+	size: number;
+	totalElements: number;
+	totalPages: number;
+	number: number;
+}
+
+interface PagedResponse {
+	_embedded: {
+		textSentimentList: Array<{
+			id: number;
+			title: string;
+			date: string;
+			symbols: string[];
+			link: string;
+			imageLink: string;
+			label: string;
+			score: number;
+		}>;
+	};
+	_links: {
+		next?: {
+			href: string;
+		};
+	};
+	page: PageInfo;
+}
 
 const getSentimentConfig = (sentiment: string) => {
 	switch (sentiment) {
@@ -132,34 +108,164 @@ const formatDate = (dateString: string) => {
 	return formatDistanceToNow(date, { addSuffix: true });
 };
 
-const NewsSection = () => {
+// map backend sentiment labels to frontend format
+const mapSentiment = (label: string): "Positive" | "Negative" | "Neutral" => {
+	const lowerLabel = label.toLowerCase();
+	if (lowerLabel.includes("positive")) return "Positive";
+	if (lowerLabel.includes("negative")) return "Negative";
+	return "Neutral";
+};
+
+interface NewsSectionProps {
+	symbol?: string;
+}
+
+const NewsSection = ({ symbol }: NewsSectionProps) => {
+	const [news, setNews] = useState<NewsArticle[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [nextPageUrl, setNextPageUrl] = useState<string | null>(null);
+	const [loadingMore, setLoadingMore] = useState(false);
+
+	useEffect(() => {
+		const fetchNews = async () => {
+			if (!symbol) return;
+
+			setLoading(true);
+			try {
+				const response = await fetch(
+					`http://localhost:8080/api/sentiment?symbol=${symbol.toUpperCase()}&size=9`
+				);
+				if (response.ok) {
+					const data: PagedResponse = await response.json();
+					const articles: NewsArticle[] = data._embedded.textSentimentList.map(
+						(item) => ({
+							id: item.id,
+							title: item.title,
+							img_src: item.imageLink || "/logo.png",
+							symbols: item.symbols,
+							link: item.link,
+							date: item.date,
+							sentiment: mapSentiment(item.label),
+							score: item.score,
+						})
+					);
+					setNews(articles);
+					setNextPageUrl(data._links.next?.href || null);
+				}
+			} catch (error) {
+				console.error("Failed to fetch news:", error);
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		fetchNews();
+	}, [symbol]);
+
+	const handleLoadMore = async () => {
+		if (!nextPageUrl || loadingMore) return;
+
+		setLoadingMore(true);
+		try {
+			const response = await fetch(nextPageUrl);
+			if (response.ok) {
+				const data: PagedResponse = await response.json();
+				const newArticles: NewsArticle[] = data._embedded.textSentimentList.map(
+					(item) => ({
+						id: item.id,
+						title: item.title,
+						img_src: item.imageLink || "/logo.png",
+						symbols: item.symbols,
+						link: item.link,
+						date: item.date,
+						sentiment: mapSentiment(item.label),
+						score: item.score,
+					})
+				);
+				setNews((prevNews) => [...prevNews, ...newArticles]);
+				setNextPageUrl(data._links.next?.href || null);
+			}
+		} catch (error) {
+			console.error("Failed to load more news:", error);
+		} finally {
+			setLoadingMore(false);
+		}
+	};
+
+	if (!symbol) {
+		return null;
+	}
+
+	if (loading) {
+		return (
+			<div className="mt-8">
+				<h2 className="text-2xl font-semibold text-gray-800 mb-4">
+					Latest News
+				</h2>
+				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+					{[...Array(6)].map((_, i) => (
+						<div
+							key={i}
+							className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden animate-pulse"
+						>
+							<div className="h-48 bg-gray-200" />
+							<div className="p-5 space-y-3">
+								<div className="h-4 bg-gray-200 rounded w-3/4" />
+								<div className="h-4 bg-gray-200 rounded w-full" />
+								<div className="h-4 bg-gray-200 rounded w-5/6" />
+							</div>
+						</div>
+					))}
+				</div>
+			</div>
+		);
+	}
+
+	if (news.length === 0) {
+		return (
+			<div className="mt-8">
+				<h2 className="text-2xl font-semibold text-gray-800 mb-4">
+					Latest News
+				</h2>
+				<p className="text-gray-500">
+					No news available for this cryptocurrency.
+				</p>
+			</div>
+		);
+	}
+
 	return (
 		<div className="mt-8">
 			<h2 className="text-2xl font-semibold text-gray-800 mb-4">Latest News</h2>
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-				{MOCK_NEWS.map((article, index) => {
+				{news.map((article) => {
 					const { colors, icon } = getSentimentConfig(article.sentiment);
 
 					return (
-						<a
-							key={index}
-							href={article.link}
-							target="_blank"
-							rel="noopener noreferrer"
-							className="group bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col h-full"
+						<div
+							key={article.id}
+							className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col h-full"
 						>
 							<div className="relative h-48 overflow-hidden bg-gray-50 flex items-center justify-center">
 								<img
 									src={article.img_src}
 									alt={article.title}
-									className="object-contain h-32 w-32 transition-transform duration-500 group-hover:scale-105"
+									onError={(e) => {
+										e.currentTarget.src = "/logo.png";
+									}}
+									className="object-cover w-full h-full"
 								/>
 
 								<div
-									className={`absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-sm border ${colors}`}
+									className={`group/sentiment absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-sm border ${colors} cursor-default`}
 								>
 									{icon}
-									<span>{article.sentiment}</span>
+									<span className="group-hover/sentiment:hidden">
+										{article.sentiment}
+									</span>
+									<span className="hidden group-hover/sentiment:inline">
+										Score: {article.score.toFixed(2)}
+									</span>
 								</div>
 							</div>
 
@@ -175,9 +281,14 @@ const NewsSection = () => {
 									))}
 								</div>
 
-								<h3 className="text-base font-semibold text-gray-900 mb-3 line-clamp-3 leading-snug group-hover:text-blue-600 transition-colors">
+								<a
+									href={article.link}
+									target="_blank"
+									rel="noopener noreferrer"
+									className="text-base font-semibold text-gray-900 mb-3 line-clamp-3 leading-snug hover:text-blue-600 transition-colors block"
+								>
 									{article.title}
-								</h3>
+								</a>
 
 								<div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between">
 									<span className="text-xs text-gray-400">
@@ -208,10 +319,26 @@ const NewsSection = () => {
 									</div>
 								</div>
 							</div>
-						</a>
+						</div>
 					);
 				})}
 			</div>
+
+			{nextPageUrl && (
+				<div className="flex justify-center mt-8">
+					<button
+						onClick={handleLoadMore}
+						disabled={loadingMore}
+						className={`px-6 py-2 text-sm font-medium rounded-md border transition-colors ${
+							loadingMore
+								? "bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed"
+								: "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-150 hover:cursor-pointer"
+						}`}
+					>
+						{loadingMore ? "Loading..." : "See More"}
+					</button>
+				</div>
+			)}
 		</div>
 	);
 };

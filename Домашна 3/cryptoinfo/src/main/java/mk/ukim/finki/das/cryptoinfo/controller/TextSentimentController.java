@@ -2,8 +2,11 @@ package mk.ukim.finki.das.cryptoinfo.controller;
 
 import java.util.List;
 
-import org.springframework.http.HttpEntity;
-import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PagedResourcesAssembler;
+import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.PagedModel;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,14 +21,20 @@ import mk.ukim.finki.das.cryptoinfo.service.TextSentimentService;
 @RequestMapping("/api/sentiment")
 public class TextSentimentController {
     private final TextSentimentService textSentimentService;
+    private final PagedResourcesAssembler<TextSentiment> assembler;
 
-    public TextSentimentController(TextSentimentService textSentimentService) {
+    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
+    public TextSentimentController(TextSentimentService textSentimentService, PagedResourcesAssembler<TextSentiment> assembler) {
         this.textSentimentService = textSentimentService;
+        this.assembler = assembler;
     }
 
     @GetMapping
-    public HttpEntity<List<TextSentiment>> getNewsBySymbol(
-            @RequestParam String symbol){
-        return ResponseEntity.ok(textSentimentService.getNewsBySymbol(symbol));
+    public PagedModel<EntityModel<TextSentiment>> getNewsBySymbol(
+            @RequestParam String symbol,
+            Pageable pageable
+    ){
+        Page<TextSentiment> page = textSentimentService.getNewsBySymbol(symbol, pageable);
+        return assembler.toModel(page);
     }
 }

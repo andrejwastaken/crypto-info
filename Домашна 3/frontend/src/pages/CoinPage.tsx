@@ -669,7 +669,7 @@ const CoinPage = () => {
 				</div>
 			</div>
 
-			<NewsSection />
+			<NewsSection symbol={symbol} />
 		</div>
 	);
 };

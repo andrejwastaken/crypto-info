@@ -1,12 +1,12 @@
 package mk.ukim.finki.das.cryptoinfo.repository;
 
 import mk.ukim.finki.das.cryptoinfo.model.TextSentiment;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-
-import java.util.List;
 
 @Repository
 public interface TextSentimentRepository extends JpaRepository<TextSentiment, Long> {
@@ -21,5 +21,5 @@ public interface TextSentimentRepository extends JpaRepository<TextSentiment, Lo
         id 
     """,
             nativeQuery = true)
-    List<TextSentiment> findTopBySymbolPriority(@Param("symbol") String symbol);
+    Page<TextSentiment> findTopBySymbolPriority(@Param("symbol") String symbol, Pageable pageable);
 }
