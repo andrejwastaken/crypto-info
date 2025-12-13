@@ -314,14 +314,13 @@ try:
     create_table_query = """
     CREATE TABLE IF NOT EXISTS news_sentiment (
         id SERIAL PRIMARY KEY,
-        title TEXT NOT NULL,
+        title TEXT NOT NULL UNIQUE,
         symbols TEXT[],
         date TIMESTAMP,
         link TEXT,
         img_src TEXT,
         sentiment_label VARCHAR(20),
-        sentiment_score FLOAT,
-      
+        sentiment_score FLOAT
     );
     """
     cursor.execute(create_table_query)
