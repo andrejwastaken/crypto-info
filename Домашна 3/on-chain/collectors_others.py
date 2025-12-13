@@ -3,10 +3,10 @@ from urllib.parse import quote_plus
 from dotenv import load_dotenv
 import requests
 import pandas as pd
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, timezone
 import math
 import time
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 import san
 
 load_dotenv()
@@ -16,6 +16,8 @@ url = "https://api.santiment.net/graphql"
 _db_engine = None
 TOTAL_DAYS = 365
 WINDOW_DAYS = 30
+IGNORE_TICKERS = ["SUI20947-USD", "HBAR-USD"] # Due to rate limits, need to ignore some tickers
+MISSING_COLUMNS_THRESHOLD = 2 # Arbitrary threshold for missing data columns
 
 def get_engine():
     global _db_engine
@@ -35,8 +37,6 @@ def get_engine():
     connection_str = f"postgresql://{db_user}:{encoded_password}@{db_host}:{db_port}/{db_name}"
     _db_engine = create_engine(connection_str, pool_size=10, max_overflow=20)
     return _db_engine
-
-
 
 def get_all_tickers():
     engine = get_engine()
@@ -70,9 +70,9 @@ def safe_extract_metric(data, metric_name):
 
 def fetch_slug_data(slug):
     slug_dfs = []
-    today = datetime.utcnow()
+    today = datetime.now(timezone.utc)
     cutoff_date = today - timedelta(days=30)
-    start_date = cutoff_date - timedelta(days=TOTAL_DAYS)
+    start_date = today - timedelta(days=TOTAL_DAYS)
     num_windows = math.ceil(TOTAL_DAYS / WINDOW_DAYS)
 
     headers = {
@@ -152,6 +152,8 @@ def fetch_slug_data(slug):
                         "nvt_ratio": get_vals("nvt_ratio"),
                         "mvrv_ratio": get_vals("mvrv_ratio")
                     })
+                    df["exchange_inflow"] = pd.to_numeric(df["exchange_inflow"], errors='coerce')
+                    df["exchange_outflow"] = pd.to_numeric(df["exchange_outflow"], errors='coerce')
                     df["net_flow"] = df["exchange_inflow"].fillna(0) - df["exchange_outflow"].fillna(0)
 
                     slug_dfs.append(df)
@@ -160,7 +162,7 @@ def fetch_slug_data(slug):
                 print(f"Exception: {e}")
                 attempts += 1
                 time.sleep(5)
-        time.sleep(2)
+        time.sleep(10)
 
     if not slug_dfs:
         return None
@@ -173,7 +175,7 @@ def fetch_slug_data(slug):
 
     # Check missing data columns
     missing_cols = all_data.isna().sum()
-    if sum(missing_cols > 0) > 2:
+    if sum(missing_cols > 0) > MISSING_COLUMNS_THRESHOLD:
         print(f"Skipping slug {slug} due to >2 columns missing data")
         return None
 
@@ -184,7 +186,6 @@ def get_santiment_data():
     df_projects = san.get("projects/all")
     tickers = get_all_tickers()
     tickers_to_slugs = map_tickers_to_slugs(tickers, df_projects)
-
     all_results = []
     for ticker, slug in tickers_to_slugs.items():
         print(f"Fetching data for {ticker} ({slug})")
