@@ -41,15 +41,22 @@ def get_engine():
 def get_all_tickers():
     engine = get_engine()
     query = "SELECT symbols FROM news_sentiment"
+
     with engine.connect() as conn:
         df = pd.read_sql(query, conn)
 
     tickers = set()
+
     for symbols_array in df["symbols"]:
-        if symbols_array:
-            tickers.update(symbols_array)
+        if symbols_array: 
+            for symbol in symbols_array:
+                if symbol not in IGNORE_TICKERS:
+                    tickers.add(symbol)
+
     return sorted(tickers)
 
+
+IGNORE_TICKERS = {"SUI20947-USD", "HBAR-USD"}
 def map_tickers_to_slugs(tickers, df_projects):
     tickers_to_slugs = {}
     for ticker in tickers:

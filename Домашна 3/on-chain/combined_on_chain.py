@@ -12,9 +12,12 @@ import math
 import time
 from sqlalchemy import create_engine, text
 import san
-
+import psycopg2
+from psycopg2 import extras
+from dotenv import load_dotenv
 
 _db_engine=None
+load_dotenv()
 
 def get_engine():
     global _db_engine
@@ -38,31 +41,13 @@ def get_engine():
 
 
 
-def init_db():
-    engine = get_engine()
-    create_table_sql = """
-    CREATE TABLE IF NOT EXISTS on_chain_sentiment_predictions (
-        id SERIAL PRIMARY KEY,
-        symbol VARCHAR(20) NOT NULL,
-        date DATE NOT NULL,
-        predicted_close NUMERIC,
-        predicted_change_pct NUMERIC
-    );
-    """
-    with engine.connect() as conn:
-        conn.execute(text(create_table_sql))
-        conn.commit()
-    print("Database table checked/created.")
-
-
-
 def combine_all_onchain_data():
-    output_file = "combined_on_chain.csv"
 
-    print("=== Step 1: Fetching TVL & Security Data ===")
+
+
     df_tvl_security = get_tvl_security_data()
     
-    print("\n=== Step 2: Fetching Santiment Data (Active Addresses, Transactions, etc.) ===")
+
     df_santiment = get_santiment_data()
 
    
@@ -79,8 +64,7 @@ def combine_all_onchain_data():
         df_santiment['join_date'] = df_santiment['datetime'].dt.date
         df_santiment['join_symbol'] = df_santiment['ticker'].str.upper()
 
-    print(f"\nTVL/Security Rows: {len(df_tvl_security)}")
-    print(f"Santiment Rows: {len(df_santiment)}")
+
 
     
     
@@ -100,7 +84,7 @@ def combine_all_onchain_data():
     merged_df['final_symbol'] = merged_df['symbol'].combine_first(merged_df['ticker'])
     
     
-    cols_to_drop = ['join_date', 'join_symbol', 'date', 'symbol', 'datetime', 'ticker']
+    cols_to_drop = ['join_date', 'join_symbol', 'date', 'symbol', 'datetime', 'ticker','chain','security_metric']
     merged_df.drop(columns=[c for c in cols_to_drop if c in merged_df.columns], inplace=True)
     
     
@@ -120,12 +104,57 @@ def combine_all_onchain_data():
     merged_df = merged_df[cols]
 
 
-    merged_df.to_csv(output_file, index=False)
+    return merged_df
+
+
+
+
+def save_to_db(df):
+   
+    engine = get_engine()
     
-    print(f"\nCombined data saved to {output_file}")
-    print(f"Total rows: {len(merged_df)}")
-    print("\nSample Data:")
-    print(merged_df.head())
+
+    create_table_sql = """
+        CREATE TABLE IF NOT EXISTS onchain_metrics (
+            id SERIAL PRIMARY KEY,
+            symbol VARCHAR(20) NOT NULL,
+            date DATE NOT NULL,
+            active_addresses BIGINT,
+            transactions BIGINT,
+            exchange_inflow NUMERIC,
+            exchange_outflow NUMERIC,
+            whale_transactions NUMERIC,
+            nvt_ratio NUMERIC,
+            mvrv_ratio NUMERIC,
+            net_flow NUMERIC,
+            security_value NUMERIC,
+            tvl_usd BIGINT
+        );
+    """
+
+
+    with engine.connect() as conn:
+        conn.execute(text(create_table_sql))
+        conn.commit()
+
+    if df.empty:
+        print("DataFrame is empty. No data to save.")
+        return
+    
+    try:
+        df.to_sql(
+            name='onchain_metrics',
+            con=engine,
+            if_exists='append',  # Add to existing data
+            index=False,         # Do not create a column for the DataFrame index
+            method='multi',      # Pass multiple rows in one SQL statement (faster)
+            chunksize=1000       # Split into batches to save memory
+        )
+        
+        
+    except Exception as e:
+        print(f"Error")
 
 if __name__ == "__main__":
-    combine_all_onchain_data()
+    final_df = combine_all_onchain_data() 
+    save_to_db(final_df)
