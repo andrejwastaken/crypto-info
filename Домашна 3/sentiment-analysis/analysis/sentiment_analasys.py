@@ -320,7 +320,7 @@ try:
         link TEXT,
         img_src TEXT,
         sentiment_label VARCHAR(20),
-        sentiment_score FLOAT,
+        sentiment_score FLOAT
       
     );
     """
