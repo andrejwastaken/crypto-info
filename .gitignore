@@ -3,5 +3,9 @@
 **/.env
 venv/
 .vscode
-**/__pycache__
 **/*.csv
+.DS_Store
+.pycharm/
+.idea/
+*.pyc
+**/__pycache__/

@@ -1,0 +1,8 @@
+pandas
+python-dotenv
+requests
+sanpy
+SQLAlchemy
+psycopg2-binary
+coinmetrics-api-client
+scikit-learn
