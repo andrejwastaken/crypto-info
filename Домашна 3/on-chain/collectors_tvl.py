@@ -9,12 +9,10 @@ import re
 
 load_dotenv()
 
-
 DEFILLAMA_CHAINS_URL = "https://api.llama.fi/v2/chains"
 DEFILLAMA_HISTORICAL_TVL_URL = "https://api.llama.fi/v2/historicalChainTvl"
 
 def get_symbols_from_db():
-    """Fetch and clean symbols from the database."""
     try:
         conn = psycopg2.connect(
             host=os.getenv("DB_HOST", "localhost"),
@@ -41,16 +39,14 @@ def get_symbols_from_db():
         return []
 
 def build_dynamic_chain_map():
-   
     print("Fetching global chain list from DefiLlama")
     try:
         response = requests.get(DEFILLAMA_CHAINS_URL, timeout=15)
         response.raise_for_status()
         all_chains = response.json()
         
-    
         token_to_chain = {}
-        
+    
         for chain in all_chains:
             chain_name = chain.get('name')
             token_symbol = chain.get('tokenSymbol')
@@ -58,7 +54,6 @@ def build_dynamic_chain_map():
             if chain_name and token_symbol:
                 token_symbol = token_symbol.upper()
                 
-              
                 if token_symbol in token_to_chain:
                    
                     if chain_name.upper() == token_symbol:
@@ -73,8 +68,6 @@ def build_dynamic_chain_map():
         return {}
 
 def fetch_historical_tvl(chain_name):
-    
-    
     url = f"{DEFILLAMA_HISTORICAL_TVL_URL}/{chain_name}"
     try:
         response = requests.get(url, timeout=10)
@@ -96,15 +89,10 @@ def fetch_historical_tvl(chain_name):
         return pd.DataFrame()
 
 def get_tvl_data():
-    #Get Symbols
     symbols = get_symbols_from_db()
     if not symbols: return pd.DataFrame()
     
-
-    #Build dynamic map
     dynamic_map = build_dynamic_chain_map()
-    
-    #Match Symbols
    
     matched_chains = {}
     for sym in symbols:
@@ -112,8 +100,6 @@ def get_tvl_data():
             chain_name = dynamic_map[sym]
             matched_chains[sym] = chain_name
        
-
-    #Fetch data
     final_rows = []
     unique_chains = set(matched_chains.values())
     chain_cache = {}
@@ -128,8 +114,7 @@ def get_tvl_data():
         else:
             print("no data")
         time.sleep(0.5)
-
-    #Assemble
+        
     for sym, chain in matched_chains.items():
         if chain in chain_cache:
             df = chain_cache[chain].copy()

@@ -8,7 +8,9 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import cross_val_score
 import ast
+from sklearn.model_selection import TimeSeriesSplit
 
+tscv = TimeSeriesSplit(n_splits=5)
 
 _db_engine = None
 
@@ -47,15 +49,12 @@ def init_db():
         conn.commit()
     print("Database table checked/created.")
 
-
-
 def get_sentiment_analysis():
     print("Fetching news sentiment data...")
     engine = get_engine()
     query = "SELECT * FROM news_sentiment"
     df = pd.read_sql(query, engine, parse_dates=['date'])
     
-
     if 'symbols' in df.columns:
         def clean_parse(x):
             if isinstance(x, list): 
@@ -67,20 +66,13 @@ def get_sentiment_analysis():
 
         df['symbols'] = df['symbols'].apply(clean_parse)
         
-      
         df = df.explode('symbols')
         
- 
         df = df.rename(columns={'symbols': 'symbol'})
         
-   
         df = df.dropna(subset=['symbol'])
         df['symbol'] = df['symbol'].astype(str).str.strip()
-        
 
-        
-     
-            
     return df
 
 def get_on_chain_metrics():
@@ -93,10 +85,7 @@ def get_on_chain_metrics():
 
 def merge_dfs(sentiment_df, on_chain_df, close_df):
     print("Merging datasets...")
-    
-
     sentiment_subset = sentiment_df[['symbol', 'date', 'sentiment_score']]
-    
 
     merged_step_1 = pd.merge(
         on_chain_df, 
@@ -105,38 +94,28 @@ def merge_dfs(sentiment_df, on_chain_df, close_df):
         how='inner'
     )
 
-
     final_merged_df = pd.merge(
         merged_step_1, 
         close_df, 
         on=['symbol', 'date'], 
         how='inner'
     )
-    
-    return final_merged_df
 
+    return final_merged_df
 
 def get_close():
     engine=get_engine()
     query='SELECT close,symbol,date from ohlcv_data'
     df=pd.read_sql(query, engine, parse_dates=['date'])
-
     return df
     
-
-
 def predict(df):
     print(f"Starting prediction pipeline with {len(df)} rows...")
-
     df = df.copy()
-
     df['date'] = pd.to_datetime(df['date'])
     df = df.sort_values(['symbol', 'date'])
-
-
     df['target_next_close'] = df.groupby('symbol')['close'].shift(-1)
 
-   
     EXCLUDE_COLS = {
         'id',
         'symbol',
@@ -149,8 +128,6 @@ def predict(df):
         c for c in df.columns
         if c not in EXCLUDE_COLS 
     ]
-
-   
 
     train_df = df.dropna(subset=['target_next_close'])
     latest_df = (
@@ -166,10 +143,8 @@ def predict(df):
     X_train = train_df[feature_cols]
     y_train = train_df['target_next_close']
 
-  
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
-
 
     model = RandomForestRegressor(
         n_estimators=300,
@@ -181,7 +156,7 @@ def predict(df):
         model,
         X_train_scaled,
         y_train,
-        cv=5,
+        cv=tscv,
         scoring='r2'
     )
 
@@ -190,7 +165,6 @@ def predict(df):
 
     model.fit(X_train_scaled, y_train)
 
-  
     X_latest = latest_df[feature_cols]
     X_latest_scaled = scaler.transform(X_latest)
 
@@ -204,25 +178,20 @@ def predict(df):
 
     latest_df['date'] = latest_df['date'] + pd.Timedelta(days=1)
 
-
     db_output = latest_df[
         ['symbol', 'date', 'predicted_close', 'predicted_change_pct']
     ]
 
-
-
-  
     try:
         engine = get_engine()
         db_output.to_sql(
-            'on_chain_sentiment_predictions',
+            'onchain_sentiment_predictions',
             engine,
             if_exists='append',
             index=False,
             method='multi'
         )
        
-
     except Exception as e:
         print(f"Exception")
 
@@ -232,7 +201,6 @@ if __name__ == "__main__":
 
     try:
         init_db()
-
         sentiment_df = get_sentiment_analysis()
         on_chain_df = get_on_chain_metrics()
         close_df=get_close()

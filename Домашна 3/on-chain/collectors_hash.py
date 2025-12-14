@@ -8,10 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
 POW_COINS = {'btc', 'doge', 'ltc', 'bch', 'kda', 'etc', 'xmr', 'rvn'}
-
-
 POS_COINS = {'eth', 'sol', 'bnb', 'sui', 'avax', 'ada', 'algo', 'xtz', 'pol', 'atom'}
 
 def clean_ticker(ticker):
@@ -38,7 +35,8 @@ def get_symbols_from_db():
         return []
 
 def fetch_security_data(assets):
-    if not assets: return
+    if not assets: 
+        return
 
     client = CoinMetricsClient()
     start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
@@ -50,7 +48,6 @@ def fetch_security_data(assets):
 
     for asset in clean_assets:
         try:
-           
             if asset in POW_COINS:
                 print(f"Fetching Hashrate for {asset.upper()}...", end=" ")
                 df = client.get_asset_metrics(
@@ -80,14 +77,13 @@ def fetch_security_data(assets):
                 else:
                     print("No Data")
 
-          
             else:
                 print(f"Fetching Market Cap for {asset.upper()}...", end=" ")
                 try:
                     df = client.get_asset_metrics(
                         assets=[asset], metrics="CapMrktCurUSD", frequency="1d", start_time=start_date
                     ).to_dataframe()
-                    
+                
                     if not df.empty:
                         df.rename(columns={'CapMrktCurUSD': 'Security_Value'}, inplace=True)
                         df['Metric_Name'] = 'Market Cap ($USD)'
@@ -101,7 +97,6 @@ def fetch_security_data(assets):
         except Exception as e:
             print(f"Error on {asset}: {e}")
 
-    
     if results:
         final_df = pd.concat(results)
         final_df = final_df[['time', 'asset', 'Metric_Name', 'Security_Value']]

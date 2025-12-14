@@ -53,6 +53,7 @@ def get_all_tickers():
                 if symbol not in IGNORE_TICKERS:
                     tickers.add(symbol)
 
+    print(f"Found {len(tickers)} unique tickers after filtering.")
     return sorted(tickers)
 
 
@@ -138,8 +139,9 @@ def fetch_slug_data(slug):
                     attempts += 1
                     continue
                 if response.status_code != 200:
-                    print(f"HTTP Error: {response.status_code}")
-                    break
+                   attempts += 1
+                   time.sleep(10)
+                   continue
                 data = response.json().get("data", {})
                 base_metric = safe_extract_metric(data, "active_addresses") or safe_extract_metric(data, "transactions_count")
                 if base_metric:
@@ -169,7 +171,7 @@ def fetch_slug_data(slug):
                 print(f"Exception: {e}")
                 attempts += 1
                 time.sleep(5)
-        time.sleep(10)
+        time.sleep(20)
 
     if not slug_dfs:
         return None
