@@ -84,6 +84,9 @@ const CoinPage = () => {
 	});
 	const [taPeriod, setTaPeriod] = useState<AnalysisTimePeriod>("DAY");
 	const [taLoading, setTaLoading] = useState(false);
+	const [prediction, setPrediction] = useState<{
+		price: number;
+	} | null>(null);
 
 	const getSignalInfo = (score: number) => {
 		const scorePercent = score * 100;
@@ -150,6 +153,31 @@ const CoinPage = () => {
 
 	useEffect(() => {
 		fetchTechnicalAnalysis("DAY");
+	}, [symbol]);
+
+	useEffect(() => {
+		const fetchPrediction = async () => {
+			if (!symbol) return;
+
+			try {
+				const res = await fetch(
+					`http://localhost:8080/api/prediction/${symbol}`
+				);
+				if (res.ok) {
+					const data = await res.json();
+					setPrediction({
+						price: data.predictedClose,
+					});
+				} else if (res.status === 404) {
+					setPrediction(null);
+				}
+			} catch (error) {
+				console.error("Failed to fetch prediction:", error);
+				setPrediction(null);
+			}
+		};
+
+		fetchPrediction();
 	}, [symbol]);
 
 	useEffect(() => {
@@ -379,7 +407,7 @@ const CoinPage = () => {
 									</div>
 								</div>
 								<div className="flex items-center justify-center gap-1 mt-2 text-xs text-gray-400">
-									<span>Score: {currentScore.toFixed(2)}</span>
+									<span>Score: {mappedScore.toFixed(2)}</span>
 									<div className="group/tooltip relative flex items-center">
 										<svg
 											className="w-3 h-3 cursor-help"
@@ -397,94 +425,74 @@ const CoinPage = () => {
 										{/* todo: change page name */}
 										<div className="hidden group-hover/tooltip:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white rounded text-[10px] z-10 shadow-lg text-center">
 											The signal score is calculated using oscilator and moving
-											average metrics over the specified period. This is not
-											financial advice. For more details, go to the `XXXXX`
-											page.
+											average metrics over the specified period. For more
+											details, go to the `XXXXX` page.
 										</div>
 									</div>
 								</div>
 							</>
 						)}
 
-						{statsLoading ? (
-							<div className="animate-pulse space-y-4 mt-6">
-								<div className="h-6 w-32 bg-gray-200 rounded mx-auto"></div>
-								<div className="space-y-2">
-									{[...Array(5)].map((_, i) => (
-										<div key={i} className="flex justify-between">
-											<div className="h-4 w-20 bg-gray-200 rounded"></div>
-											<div className="h-4 w-24 bg-gray-200 rounded"></div>
+						<div className="mt-6 p-4 bg-linear-to-br from-indigo-50 to-blue-50 rounded-xl border border-indigo-100 shadow-sm relative overflow-visible">
+							<h4 className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-2 text-center">
+								Tomorrow's Prediction
+							</h4>
+							{/* todo: != 0.00 is a temp fix, make changes in the script and in the db*/}
+							{prediction &&
+							coinStats &&
+							coinStats.close &&
+							prediction.price != 0.0 &&
+							prediction.price != 1.0 ? (
+								<div className="flex flex-col items-center justify-center">
+									<span className="text-2xl font-bold text-gray-900">
+										{formatPrice(prediction.price)}
+									</span>
+									<span
+										className={`text-sm font-semibold flex items-center gap-1 mt-1 ${
+											prediction.price >= coinStats.close
+												? "text-green-600"
+												: "text-red-500"
+										}`}
+									>
+										{prediction.price >= coinStats.close ? "+" : ""}
+										{(
+											((prediction.price - coinStats.close) / coinStats.close) *
+											100
+										).toFixed(2)}
+										%
+										<div className="group/tooltip relative flex items-center text-gray-400">
+											<svg
+												className="w-3 h-3 cursor-help"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+											>
+												<path
+													strokeLinecap="round"
+													strokeLinejoin="round"
+													strokeWidth="2"
+													d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+												/>
+											</svg>
+											<div className="hidden group-hover/tooltip:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white rounded text-[10px] z-10 shadow-lg text-center">
+												This prediction is made using an LSTM model. For more
+												details, go to the `XXXXX` page.
+											</div>
 										</div>
-									))}
+									</span>
 								</div>
-							</div>
-						) : coinStats ? (
-							<div className="space-y-4 mt-6 flex-1 text-center">
-								{/* 24h stats */}
-								<div>
-									<div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-										<div className="text-gray-500 text-right">24H LOW:</div>
-										<div className="font-medium text-left">
-											{coinStats.low24h != null
-												? formatPrice(coinStats.low24h)
-												: "—"}
-										</div>
-										<div className="text-gray-500 text-right">24H HIGH:</div>
-										<div className="font-medium text-left">
-											{coinStats.high24h != null
-												? formatPrice(coinStats.high24h)
-												: "—"}
-										</div>
-										<div className="text-gray-500 text-right">24H VOLUME:</div>
-										<div className="font-medium text-left">
-											{coinStats.volume24h != null
-												? formatNumber(coinStats.volume24h)
-												: "—"}
-										</div>
-									</div>
+							) : (
+								<div className="flex items-center justify-center py-2">
+									<span className="text-sm text-gray-500">
+										No prediction available
+									</span>
 								</div>
+							)}
+						</div>
 
-								{/* 52w stats */}
-								<div>
-									<div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-										<div className="text-gray-500 text-right">52W LOW:</div>
-										<div className="font-medium text-left">
-											{coinStats.low52w != null
-												? formatPrice(coinStats.low52w)
-												: "—"}
-										</div>
-										<div className="text-gray-500 text-right">52W HIGH:</div>
-										<div className="font-medium text-left">
-											{coinStats.high52w != null
-												? formatPrice(coinStats.high52w)
-												: "—"}
-										</div>
-									</div>
-								</div>
-
-								{/* open/close stats */}
-								<div className="pt-2 border-t border-gray-200">
-									<div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-										<div className="text-gray-500 text-right">OPEN:</div>
-										<div className="font-medium text-left">
-											{coinStats.open != null
-												? formatPrice(coinStats.open)
-												: "—"}
-										</div>
-										<div className="text-gray-500 text-right">CURRENT:</div>
-										<div className="font-medium text-left">
-											{coinStats.close != null
-												? formatPrice(coinStats.close)
-												: "—"}
-										</div>
-									</div>
-								</div>
-							</div>
-						) : (
-							<p className="text-gray-500 mt-6 text-center">
-								No stats available
-							</p>
-						)}
+						<p className="mt-6 text-xs text-center text-gray-500 italic">
+							This is not financial advice
+						</p>
 					</div>
 				</div>
 
@@ -668,6 +676,115 @@ const CoinPage = () => {
 					</div>
 				</div>
 			</div>
+
+			{/* historic stats below the chart */}
+			{statsLoading ? (
+				<div className="mt-6 bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+					<div className="animate-pulse space-y-4">
+						<div className="h-6 w-32 bg-gray-200 rounded mx-auto"></div>
+						<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+							{[...Array(3)].map((_, i) => (
+								<div key={i} className="space-y-2">
+									{[...Array(3)].map((_, j) => (
+										<div key={j} className="flex justify-between">
+											<div className="h-4 w-20 bg-gray-200 rounded"></div>
+											<div className="h-4 w-24 bg-gray-200 rounded"></div>
+										</div>
+									))}
+								</div>
+							))}
+						</div>
+					</div>
+				</div>
+			) : coinStats ? (
+				<div className="mt-6 bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+					<h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">
+						Historic Statistics
+					</h3>
+					<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+						{/* 24h stats */}
+						<div className="text-center">
+							<h4 className="text-sm font-semibold text-gray-500 mb-3 uppercase tracking-wider">
+								24 Hour
+							</h4>
+							<div className="space-y-2 text-sm">
+								<div className="flex justify-between">
+									<span className="text-gray-500">Low:</span>
+									<span className="font-medium">
+										{coinStats.low24h != null
+											? formatPrice(coinStats.low24h)
+											: "—"}
+									</span>
+								</div>
+								<div className="flex justify-between">
+									<span className="text-gray-500">High:</span>
+									<span className="font-medium">
+										{coinStats.high24h != null
+											? formatPrice(coinStats.high24h)
+											: "—"}
+									</span>
+								</div>
+								<div className="flex justify-between">
+									<span className="text-gray-500">Volume:</span>
+									<span className="font-medium">
+										{coinStats.volume24h != null
+											? formatNumber(coinStats.volume24h)
+											: "—"}
+									</span>
+								</div>
+							</div>
+						</div>
+
+						{/* 52w stats */}
+						<div className="text-center">
+							<h4 className="text-sm font-semibold text-gray-500 mb-3 uppercase tracking-wider">
+								52 Week
+							</h4>
+							<div className="space-y-2 text-sm">
+								<div className="flex justify-between">
+									<span className="text-gray-500">Low:</span>
+									<span className="font-medium">
+										{coinStats.low52w != null
+											? formatPrice(coinStats.low52w)
+											: "—"}
+									</span>
+								</div>
+								<div className="flex justify-between">
+									<span className="text-gray-500">High:</span>
+									<span className="font-medium">
+										{coinStats.high52w != null
+											? formatPrice(coinStats.high52w)
+											: "—"}
+									</span>
+								</div>
+							</div>
+						</div>
+
+						{/* open/close stats */}
+						<div className="text-center">
+							<h4 className="text-sm font-semibold text-gray-500 mb-3 uppercase tracking-wider">
+								Price Points
+							</h4>
+							<div className="space-y-2 text-sm">
+								<div className="flex justify-between">
+									<span className="text-gray-500">Open:</span>
+									<span className="font-medium">
+										{coinStats.open != null ? formatPrice(coinStats.open) : "—"}
+									</span>
+								</div>
+								<div className="flex justify-between">
+									<span className="text-gray-500">Current:</span>
+									<span className="font-medium">
+										{coinStats.close != null
+											? formatPrice(coinStats.close)
+											: "—"}
+									</span>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			) : null}
 
 			<NewsSection symbol={symbol} />
 		</div>
