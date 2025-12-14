@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useCoins } from "../context/CoinsContext";
 import { formatNumber } from "../helpers";
 
@@ -10,6 +10,17 @@ type SortField =
 	| "circulatingSupply"
 	| "change52w";
 
+type Prediction = {
+	symbol: string;
+	predictedClose: number;
+	predictedChangePct: number;
+};
+
+type PredictionsData = {
+	top: Prediction[];
+	bottom: Prediction[];
+};
+
 const LandingPage = () => {
 	const navigate = useNavigate();
 	const { coins, loading } = useCoins();
@@ -17,6 +28,27 @@ const LandingPage = () => {
 	const [currentPage, setCurrentPage] = useState(0);
 	const [sortBy, setSortBy] = useState<SortField>("marketCap");
 	const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+	const [predictions, setPredictions] = useState<PredictionsData | null>(null);
+	const [predictionsLoading, setPredictionsLoading] = useState(true);
+
+	useEffect(() => {
+		const fetchPredictions = async () => {
+			try {
+				const response = await fetch(
+					"http://localhost:8080/api/prediction/extremes"
+				);
+				if (response.ok) {
+					const data = await response.json();
+					setPredictions(data);
+				}
+			} catch (error) {
+				console.error("Failed to fetch predictions:", error);
+			} finally {
+				setPredictionsLoading(false);
+			}
+		};
+		fetchPredictions();
+	}, []);
 
 	const sortedCoins = useMemo(() => {
 		return [...coins].sort((a, b) => {
@@ -54,6 +86,111 @@ const LandingPage = () => {
 
 	return (
 		<div className="container mx-auto px-4 py-8">
+			{/* predictions section */}
+			{!predictionsLoading && predictions && (
+				<div className="mb-8 bg-white border border-gray-300 rounded-lg shadow-sm p-4 max-w-4xl mx-auto">
+					<div className="flex items-center justify-center gap-2 mb-3">
+						<h2 className="text-2xl font-bold text-gray-800">
+							Tomorrow's AI Predictions
+						</h2>
+						<div className="group/tooltip relative flex items-center">
+							<svg
+								className="w-4 h-4 cursor-help text-gray-400"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									strokeWidth="2"
+									d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+								/>
+							</svg>
+							<div className="hidden group-hover/tooltip:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white rounded text-[10px] z-10 shadow-lg text-center">
+								This prediction is made using an LSTM model. For more details,
+								go to the `XXXXX` page.
+							</div>
+						</div>
+					</div>
+					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+						{/* Top 5 Predictions */}
+						<div>
+							<h3 className="text-base font-semibold text-green-600 mb-2">
+								Top 5 Gainers
+							</h3>
+							<div className="space-y-1.5">
+								{predictions.top.map((pred, idx) => (
+									<div
+										key={pred.symbol}
+										className="flex items-center justify-between p-2 bg-green-50 rounded border border-green-200"
+									>
+										<div className="flex items-center gap-2">
+											<span className="text-xs font-semibold text-gray-500 w-5">
+												#{idx + 1}
+											</span>
+											<Link
+												to={`/coins/${pred.symbol}`}
+												className="font-medium text-gray-900 text-sm hover:text-green-600 hover:underline"
+											>
+												{pred.symbol}
+											</Link>
+										</div>
+										<div className="flex items-center gap-3">
+											<span className="text-xs text-gray-600">
+												${pred.predictedClose.toFixed(2)}
+											</span>
+											<span className="font-semibold text-green-600 text-sm">
+												+{pred.predictedChangePct.toFixed(2)}%
+											</span>
+										</div>
+									</div>
+								))}
+							</div>
+						</div>
+
+						{/* Bottom 5 Predictions */}
+						<div>
+							<h3 className="text-base font-semibold text-red-600 mb-2">
+								Top 5 Losers
+							</h3>
+							<div className="space-y-1.5">
+								{predictions.bottom.map((pred, idx) => (
+									<div
+										key={pred.symbol}
+										className="flex items-center justify-between p-2 bg-red-50 rounded border border-red-200"
+									>
+										<div className="flex items-center gap-2">
+											<span className="text-xs font-semibold text-gray-500 w-5">
+												#{idx + 1}
+											</span>
+											<Link
+												to={`/coins/${pred.symbol}`}
+												className="font-medium text-gray-900 text-sm hover:text-red-600 hover:underline"
+											>
+												{pred.symbol}
+											</Link>
+										</div>
+										<div className="flex items-center gap-3">
+											<span className="text-xs text-gray-600">
+												${pred.predictedClose.toFixed(2)}
+											</span>
+											<span className="font-semibold text-red-600 text-sm">
+												{pred.predictedChangePct.toFixed(2)}%
+											</span>
+										</div>
+									</div>
+								))}
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
+
+			<h2 className="text-2xl font-bold text-gray-800 mb-4">
+				All Cryptocurrencies
+			</h2>
+
 			<div className="mb-4 flex flex-wrap items-center gap-6">
 				<div className="flex items-center gap-2">
 					<label className="text-sm font-medium text-gray-700">Sort by:</label>

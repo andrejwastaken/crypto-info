@@ -10,7 +10,6 @@ import java.time.LocalDate;
 
 @Entity
 @Table(name = "ohlcv_predictions")
-@Getter
 public class OhlcvPrediction {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
@@ -20,6 +19,7 @@ public class OhlcvPrediction {
     @Size(max = 20)
     @NotNull
     @Column(name = "symbol", nullable = false, length = 20)
+    @Getter
     private String symbol;
 
     @NotNull
@@ -27,8 +27,10 @@ public class OhlcvPrediction {
     private LocalDate date;
 
     @Column(name = "predicted_close")
+    @Getter
     private BigDecimal predictedClose;
 
     @Column(name = "predicted_change_pct")
+    @Getter
     private BigDecimal predictedChangePct;
 }
