@@ -310,11 +310,10 @@ const NewsSection = ({ symbol }: NewsSectionProps) => {
 												d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
 											/>
 										</svg>
-										{/* todo: change page name */}
 										<span className="hidden group-hover/tooltip:block absolute bottom-full right-0 mb-2 w-48 p-2 bg-gray-800 text-white rounded text-[10px] z-10 shadow-lg">
 											The sentiment is calculated with sentiment analysis using
-											the finBERT model. For more details, go to the `XXXXX`
-											page.
+											the FinBERT model. For more details, visit the{" "}
+											<span className="font-bold">How it works?</span> page.
 										</span>
 									</div>
 								</div>

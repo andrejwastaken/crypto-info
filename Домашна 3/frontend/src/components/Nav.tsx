@@ -114,12 +114,12 @@ const Nav = () => {
 				<Link to="/" className="hover:underline">
 					Home
 				</Link>
+				<Link to="/how-it-works" className="hover:underline">
+					How it works?
+				</Link>
 				<Link to="/about" className="hover:underline">
 					About us
 				</Link>
-				{/* <Link to="/" className="hover:underline">
-					How it works
-				</Link> */}
 			</div>
 		</nav>
 	);

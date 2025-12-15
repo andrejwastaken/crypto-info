@@ -4,6 +4,7 @@ import Nav from "./components/Nav";
 import { CoinsProvider } from "./context/CoinsContext";
 import AboutPage from "./pages/AboutPage";
 import CoinPage from "./pages/CoinPage";
+import HowItWorksPage from "./pages/HowItWorksPage";
 import LandingPage from "./pages/LandingPage";
 
 const Layout = () => (
@@ -23,6 +24,7 @@ const router = createBrowserRouter([
 		children: [
 			{ path: "", element: <LandingPage /> },
 			{ path: "coins/:symbol", element: <CoinPage /> },
+			{ path: "how-it-works", element: <HowItWorksPage /> },
 			{ path: "about", element: <AboutPage /> },
 		],
 	},

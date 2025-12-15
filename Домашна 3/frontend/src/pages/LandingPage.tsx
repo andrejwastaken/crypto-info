@@ -145,12 +145,12 @@ const LandingPage = () => {
 								</svg>
 								<div className="hidden group-hover/tooltip:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white rounded text-[10px] z-10 shadow-lg text-center">
 									This prediction is made using an LSTM model. For more details,
-									go to the `XXXXX` page.
+									visit the <span className="font-bold">How it works?</span>{" "}
+									page.
 								</div>
 							</div>
 						</div>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-							{/* Top 5 Predictions */}
 							<div>
 								<h3 className="text-base font-semibold text-green-600 mb-2">
 									Top 5 Predicted Winners
@@ -248,7 +248,8 @@ const LandingPage = () => {
 								</svg>
 								<div className="hidden group-hover/tooltip:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white rounded text-[10px] z-10 shadow-lg text-center">
 									On-chain metrics provide insights into blockchain activity and
-									investor behavior.
+									investor behavior. For more details, visit the{" "}
+									<span className="font-bold">How it works?</span> page.
 								</div>
 							</div>
 						</div>
