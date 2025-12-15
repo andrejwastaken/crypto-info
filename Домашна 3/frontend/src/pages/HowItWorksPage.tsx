@@ -116,16 +116,16 @@ const HowItWorksPage = () => {
 										<strong>TVL (Total Value Locked):</strong> Total value
 										locked in DeFi protocols for that cryptocurrency
 									</li>
+									<li>
+										<strong>Hash Rate:</strong> Value that represents the
+										efficiency and performance of a mining machine.
+									</li>
 								</ul>
 							</div>
 							<p className="text-slate-700 leading-relaxed">
-								<u>
-									These metrics are aggregated from multiple blockchain
-									explorers and data providers, processed, and updated regularly
-									to ensure accuracy. [vidi komentar u kod]
-								</u>
-								{/* TODO: ako sakate smenete go ova so linkovite od kaj sto ste zimale, ako ne
-							izbrisete samo underlineot i ova*/}{" "}
+								These metrics are aggregated from multiple blockchain explorers
+								and data providers, processed, and updated regularly to ensure
+								accuracy.
 							</p>
 						</div>
 
@@ -396,7 +396,7 @@ const HowItWorksPage = () => {
 									text="Binance News"
 									link="https://www.binance.com/en/square/news/all"
 								/>{" "}
-								Web scrapers continuously monitor these sources for relevant
+								web scrapers continuously monitor these sources for relevant
 								content.
 							</p>
 							<p className="text-slate-700 leading-relaxed mb-3">

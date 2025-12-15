@@ -1,7 +1,11 @@
 package mk.ukim.finki.das.cryptoinfo.service;
 
-import mk.ukim.finki.das.cryptoinfo.repository.OnChainSentimentPredictionRepository;
+import java.util.List;
+
 import org.springframework.stereotype.Service;
+
+import mk.ukim.finki.das.cryptoinfo.model.OnChainSentimentPrediction;
+import mk.ukim.finki.das.cryptoinfo.repository.OnChainSentimentPredictionRepository;
 
 @Service
 public class OnChainSentimentPredictionService {
@@ -11,4 +15,7 @@ public class OnChainSentimentPredictionService {
         this.repository = repository;
     }
 
+    public List<OnChainSentimentPrediction> getAllPredictions(){
+        return repository.findAll();
+    }
 }

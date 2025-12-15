@@ -10,9 +10,11 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
+import lombok.Getter;
 
 @Entity
 @Table(name = "on_chain_sentiment_predictions")
+@Getter
 public class OnChainSentimentPrediction {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)

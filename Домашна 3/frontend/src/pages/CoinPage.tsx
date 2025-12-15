@@ -511,7 +511,7 @@ const CoinPage = () => {
 							<div className="flex items-center gap-2">
 								<button
 									onClick={() => setChartType("line")}
-									className={`p-2 rounded-lg border border-amber-300 ${
+									className={`p-2 rounded-lg border border-amber-300 group ${
 										chartType === "line"
 											? "bg-amber-200 border-amber-500"
 											: "text-amber-100 hover:bg-amber-200 hover:cursor-pointer"
@@ -525,6 +525,7 @@ const CoinPage = () => {
 										fill="none"
 										stroke="currentColor"
 										strokeWidth="2"
+										className="group-hover:stroke-slate-900"
 									>
 										<polyline points="22,6 12,13 7,9 2,15" />
 									</svg>
@@ -534,7 +535,7 @@ const CoinPage = () => {
 										setChartType("candle");
 										if (period === "7D") setPeriod("1M");
 									}}
-									className={`p-2 rounded-lg border border-amber-300 ${
+									className={`p-2 rounded-lg border border-amber-300 group ${
 										chartType === "candle"
 											? "bg-amber-200 border-amber-500"
 											: "text-amber-100 hover:bg-amber-200 hover:cursor-pointer"
@@ -548,6 +549,7 @@ const CoinPage = () => {
 										fill="none"
 										stroke="currentColor"
 										strokeWidth="2"
+										className="group-hover:stroke-slate-900"
 									>
 										<line x1="6" y1="4" x2="6" y2="20" />
 										<rect
@@ -556,6 +558,7 @@ const CoinPage = () => {
 											width="4"
 											height="8"
 											fill="currentColor"
+											className="group-hover:fill-slate-900"
 										/>
 										<line x1="18" y1="4" x2="18" y2="20" />
 										<rect x="16" y="6" width="4" height="10" fill="none" />

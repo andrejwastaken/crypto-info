@@ -22,6 +22,14 @@ type PredictionsData = {
 	bottom: Prediction[];
 };
 
+type ChainSentimentPrediction = {
+	id: number;
+	symbol: string;
+	date: string;
+	predictedClose: number;
+	predictedChangePct: number;
+};
+
 type OnChainMetric = {
 	id: number;
 	symbol: string;
@@ -47,6 +55,10 @@ const LandingPage = () => {
 	const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 	const [predictions, setPredictions] = useState<PredictionsData | null>(null);
 	const [predictionsLoading, setPredictionsLoading] = useState(true);
+	const [chainSentimentPredictions, setChainSentimentPredictions] = useState<
+		ChainSentimentPrediction[]
+	>([]);
+	const [chainSentimentLoading, setChainSentimentLoading] = useState(true);
 	const [onChainMetrics, setOnChainMetrics] = useState<OnChainMetric[]>([]);
 	const [onChainLoading, setOnChainLoading] = useState(true);
 
@@ -67,6 +79,22 @@ const LandingPage = () => {
 			}
 		};
 
+		const fetchChainSentimentPredictions = async () => {
+			try {
+				const response = await fetch(
+					"http://localhost:8080/api/chain-sentiment-prediction"
+				);
+				if (response.ok) {
+					const data = await response.json();
+					setChainSentimentPredictions(data);
+				}
+			} catch (error) {
+				console.error("Failed to fetch chain-sentiment predictions:", error);
+			} finally {
+				setChainSentimentLoading(false);
+			}
+		};
+
 		const fetchOnChainMetrics = async () => {
 			try {
 				const response = await fetch("http://localhost:8080/api/on-chain");
@@ -82,6 +110,7 @@ const LandingPage = () => {
 		};
 
 		fetchPredictions();
+		fetchChainSentimentPredictions();
 		fetchOnChainMetrics();
 	}, []);
 
@@ -219,6 +248,50 @@ const LandingPage = () => {
 									</div>
 								</div>
 							</div>
+
+							{/* chain-sentiment predictions table */}
+							{!chainSentimentLoading &&
+								chainSentimentPredictions.length > 0 && (
+									<div className="mt-4 md:w-[calc(50%-0.5rem)] mx-auto">
+										<h3 className="text-center font-semibold text-slate-800 mb-2">
+											Predictions based on on-chain + sentiment analysis
+										</h3>
+										<div className="space-y-1.5">
+											{chainSentimentPredictions.map((pred) => (
+												<div
+													key={pred.id}
+													className={`flex items-center justify-between p-2.5 rounded border transition-colors cursor-pointer ${
+														pred.predictedChangePct >= 0
+															? "bg-green-50 border-green-200 hover:bg-green-100"
+															: "bg-red-50 border-red-200 hover:bg-red-100"
+													}`}
+													onClick={() => navigate(`/coins/${pred.symbol}`)}
+												>
+													<div className="flex items-center gap-2">
+														<span className="font-medium text-gray-900 text-sm">
+															{pred.symbol.replace("-USD", "")}
+														</span>
+													</div>
+													<div className="flex items-center gap-3">
+														<span className="text-xs text-gray-600 w-16 text-right">
+															${pred.predictedClose.toFixed(2)}
+														</span>
+														<span
+															className={`font-semibold text-sm w-20 text-right ${
+																pred.predictedChangePct >= 0
+																	? "text-green-600"
+																	: "text-red-600"
+															}`}
+														>
+															{pred.predictedChangePct >= 0 ? "+" : ""}
+															{pred.predictedChangePct.toFixed(2)}%
+														</span>
+													</div>
+												</div>
+											))}
+										</div>
+									</div>
+								)}
 						</div>
 					)}
 
@@ -251,7 +324,7 @@ const LandingPage = () => {
 								</div>
 							</div>
 							{/* column headers */}
-							<div className="grid grid-cols-10 gap-1 px-3 py-2 text-[10px] font-semibold text-gray-500">
+							<div className="grid grid-cols-11 gap-1 px-3 py-2 text-[10px] font-semibold text-gray-500">
 								<div className="col-span-1">Symbol</div>
 								<div className="text-right">Active</div>
 								<div className="text-right">Txns</div>
@@ -262,13 +335,14 @@ const LandingPage = () => {
 								<div className="text-right">NVT</div>
 								<div className="text-right">MVRV</div>
 								<div className="text-right">TVL</div>
+								<div className="text-right">Hash Rate</div>
 							</div>
 							{/* data rows */}
-							<div className="space-y-2 flex flex-col">
+							<div className="space-y-4 flex flex-col">
 								{onChainMetrics.map((metric) => (
 									<div
 										key={metric.symbol}
-										className="grid grid-cols-10 gap-1 items-center py-[13px] px-3 bg-amber-50 rounded border border-amber-300 hover:bg-amber-200 transition-colors cursor-pointer"
+										className="grid grid-cols-11 gap-1 items-center py-6 px-3 bg-amber-50 rounded border border-amber-300 hover:bg-amber-200 transition-colors cursor-pointer"
 										onClick={() => navigate(`/coins/${metric.symbol}`)}
 									>
 										<div className="col-span-1">
@@ -279,22 +353,22 @@ const LandingPage = () => {
 										<div className="text-right text-[11px] text-gray-700">
 											{metric.activeAddresses
 												? formatNumberChainMetrics(metric.activeAddresses)
-												: "N/A"}
+												: "~0"}
 										</div>
 										<div className="text-right text-[11px] text-gray-700">
 											{metric.transactions
 												? formatNumberChainMetrics(metric.transactions)
-												: "N/A"}
+												: "~0"}
 										</div>
 										<div className="text-right text-[11px] text-gray-700">
 											{metric.exchangeInflow
 												? formatNumberChainMetrics(metric.exchangeInflow)
-												: "N/A"}
+												: "~0"}
 										</div>
 										<div className="text-right text-[11px] text-gray-700">
 											{metric.exchangeOutflow
 												? formatNumberChainMetrics(metric.exchangeOutflow)
-												: "N/A"}
+												: "~0"}
 										</div>
 										<div
 											className={`text-right text-[11px] font-medium ${
@@ -306,25 +380,30 @@ const LandingPage = () => {
 											}`}
 										>
 											{metric.netFlow === 0
-												? "N/A"
+												? "~0"
 												: (metric.netFlow > 0 ? "+" : "") +
 												  formatNumberChainMetrics(metric.netFlow)}
 										</div>
 										<div className="text-right text-[11px] text-gray-700">
 											{metric.whaleTransactions
 												? formatNumberChainMetrics(metric.whaleTransactions)
-												: "N/A"}
+												: "~0"}
 										</div>
 										<div className="text-right text-[11px] text-gray-700">
-											{metric.nvtRatio ? metric.nvtRatio.toFixed(2) : "N/A"}
+											{metric.nvtRatio ? metric.nvtRatio.toFixed(2) : "~0"}
 										</div>
 										<div className="text-right text-[11px] text-gray-700">
-											{metric.mvrvRatio ? metric.mvrvRatio.toFixed(2) : "N/A"}
+											{metric.mvrvRatio ? metric.mvrvRatio.toFixed(2) : "~0"}
 										</div>
 										<div className="text-right text-[11px] text-gray-700">
 											{metric.tvlUsd
 												? formatNumberChainMetrics(metric.tvlUsd)
-												: "N/A"}
+												: "~0"}
+										</div>
+										<div className="text-right text-[11px] text-gray-700">
+											{metric.securityValue
+												? formatNumberChainMetrics(metric.securityValue)
+												: "~0"}
 										</div>
 									</div>
 								))}
@@ -426,7 +505,7 @@ const LandingPage = () => {
 												onClick={() => navigate(`/coins/${coin.symbol}`)}
 											>
 												<td className="px-6 py-4 text-sm text-slate-900 border-b border-amber-200">
-													{currentPage * pageSize + index + 1}
+													{currentPage * pageSize + index + 1}.
 												</td>
 												<td className="px-6 py-4 text-sm text-slate-900 border-b border-amber-200">
 													{coin.symbol}
