@@ -10,4 +10,3 @@ venv/
 *.pyc
 **/__pycache__/
 **/aenv
-roles.md
