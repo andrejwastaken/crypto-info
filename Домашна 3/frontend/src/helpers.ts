@@ -75,3 +75,15 @@ export const formatPrice = (num: number): string => {
 	}
 	return num.toFixed(2);
 };
+
+export const formatNumberChainMetrics = (num: number): string => {
+	const formattedNum: string = formatNumber(num);
+	if (
+		formattedNum.includes(".") &&
+		!formattedNum.substring(formatNumber.length - 1).match(/^[A-Za-z]+$/) &&
+		formattedNum.endsWith("0")
+	) {
+		return formattedNum.substring(0, formattedNum.length - 1);
+	}
+	return formattedNum;
+};
