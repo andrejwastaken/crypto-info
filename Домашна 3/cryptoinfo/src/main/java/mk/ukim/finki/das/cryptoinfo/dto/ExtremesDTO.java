@@ -4,7 +4,7 @@ import mk.ukim.finki.das.cryptoinfo.model.OhlcvPrediction;
 
 import java.util.List;
 
-public record ExtremesDto (
+public record ExtremesDTO(
         List<OhlcvPrediction> top,
         List<OhlcvPrediction> bottom
 ){}

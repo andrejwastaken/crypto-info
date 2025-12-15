@@ -1,6 +1,6 @@
 package mk.ukim.finki.das.cryptoinfo.controller;
 
-import mk.ukim.finki.das.cryptoinfo.dto.ExtremesDto;
+import mk.ukim.finki.das.cryptoinfo.dto.ExtremesDTO;
 import mk.ukim.finki.das.cryptoinfo.model.OhlcvPrediction;
 import mk.ukim.finki.das.cryptoinfo.service.OhlcvPredictionService;
 import org.springframework.http.HttpEntity;
@@ -26,7 +26,7 @@ public class OhlcvPredictionController {
     }
 
     @GetMapping("/extremes")
-    public HttpEntity<ExtremesDto> getTopAndBottom5(){
+    public HttpEntity<ExtremesDTO> getTopAndBottom5(){
         return ResponseEntity.ok(ohlcvPredictionService.getTopAndBottom5ByPercentageChange());
     }
 }
