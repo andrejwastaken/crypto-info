@@ -62,7 +62,7 @@ const Nav = () => {
 	};
 
 	return (
-		<nav className="bg-gray-200 flex items-center justify-between px-8 py-2 shadow-sm">
+		<nav className="bg-amber-100 flex items-center justify-between px-8 py-2 shadow-sm">
 			<div className="flex items-center gap-4">
 				<Link to="/">
 					<img src="/logo.png" width={90} alt="Logo" />
@@ -76,10 +76,10 @@ const Nav = () => {
 						onKeyDown={handleKeyDown}
 						onFocus={() => setShowSuggestions(true)}
 						onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-						className="pl-4 sm:pr-30 lg:pr-100 py-2 rounded-full bg-white border border-gray-300 
-                        focus:outline-none focus:ring-2 focus:ring-blue-200 min-w-[150px] mr-1"
+						className="pl-4 sm:pr-30 lg:pr-100 py-2 rounded-full bg-white border border-slate-300 
+                        focus:outline-none focus:ring-2 focus:ring-slate-400 min-w-[150px] mr-1"
 					/>
-					<span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+					<span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
 						<svg width="18" height="18" fill="none" viewBox="0 0 24 24">
 							<path
 								stroke="currentColor"
@@ -91,26 +91,26 @@ const Nav = () => {
 						</svg>
 					</span>
 					{showSuggestions && filteredCoins.length > 0 && (
-						<div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 overflow-hidden">
+						<div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-300 rounded-lg shadow-lg z-50 overflow-hidden">
 							{filteredCoins.map((coin, index) => (
 								<div
 									key={coin.id}
 									onClick={() => handleSelect(coin.symbol)}
 									className={`px-4 py-2 cursor-pointer flex justify-between items-center ${
 										index === selectedIndex
-											? "bg-gray-200"
-											: "hover:bg-gray-100"
+											? "bg-slate-200"
+											: "hover:bg-slate-100"
 									}`}
 								>
 									<span className="font-medium">{coin.symbol}</span>
-									<span className="text-sm text-gray-500">{coin.name}</span>
+									<span className="text-sm text-slate-500">{coin.name}</span>
 								</div>
 							))}
 						</div>
 					)}
 				</div>
 			</div>
-			<div className="flex items-center gap-5 xl:gap-30 text-gray-700 font-medium">
+			<div className="flex items-center gap-5 xl:gap-30 text-slate-900 font-medium">
 				<Link to="/" className="hover:underline">
 					Home
 				</Link>

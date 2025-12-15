@@ -199,20 +199,20 @@ const NewsSection = ({ symbol }: NewsSectionProps) => {
 	if (loading) {
 		return (
 			<div className="mt-8">
-				<h2 className="text-2xl font-semibold text-gray-800 mb-4">
+				<h2 className="text-2xl font-semibold text-amber-100 mb-4">
 					Latest News
 				</h2>
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 					{[...Array(6)].map((_, i) => (
 						<div
 							key={i}
-							className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden animate-pulse"
+							className="bg-amber-100 rounded-xl border border-amber-400 shadow-sm overflow-hidden animate-pulse"
 						>
-							<div className="h-48 bg-gray-200" />
+							<div className="h-48 bg-amber-200" />
 							<div className="p-5 space-y-3">
-								<div className="h-4 bg-gray-200 rounded w-3/4" />
-								<div className="h-4 bg-gray-200 rounded w-full" />
-								<div className="h-4 bg-gray-200 rounded w-5/6" />
+								<div className="h-4 bg-amber-200 rounded w-3/4" />
+								<div className="h-4 bg-amber-200 rounded w-full" />
+								<div className="h-4 bg-amber-200 rounded w-5/6" />
 							</div>
 						</div>
 					))}
@@ -224,10 +224,10 @@ const NewsSection = ({ symbol }: NewsSectionProps) => {
 	if (news.length === 0) {
 		return (
 			<div className="mt-8">
-				<h2 className="text-2xl font-semibold text-gray-800 mb-4">
+				<h2 className="text-2xl font-semibold text-amber-100 mb-4">
 					Latest News
 				</h2>
-				<p className="text-gray-500">
+				<p className="text-amber-200">
 					No news available for this cryptocurrency.
 				</p>
 			</div>
@@ -236,7 +236,9 @@ const NewsSection = ({ symbol }: NewsSectionProps) => {
 
 	return (
 		<div className="mt-8">
-			<h2 className="text-2xl font-semibold text-gray-800 mb-4">Latest News</h2>
+			<h2 className="text-2xl font-semibold text-amber-100 mb-4">
+				Latest News
+			</h2>
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 				{news.map((article) => {
 					const { colors, icon } = getSentimentConfig(article.sentiment);
@@ -244,9 +246,9 @@ const NewsSection = ({ symbol }: NewsSectionProps) => {
 					return (
 						<div
 							key={article.id}
-							className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col h-full"
+							className="bg-amber-100 rounded-xl border border-amber-400 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col h-full"
 						>
-							<div className="relative h-48 overflow-hidden bg-gray-50 flex items-center justify-center">
+							<div className="relative h-48 overflow-hidden bg-amber-50 flex items-center justify-center">
 								<img
 									src={article.img_src}
 									alt={article.title}
@@ -274,7 +276,7 @@ const NewsSection = ({ symbol }: NewsSectionProps) => {
 									{article.symbols.map((symbol) => (
 										<span
 											key={symbol}
-											className="text-[10px] font-bold uppercase tracking-wide bg-gray-100 text-gray-500 px-2 py-1 rounded"
+											className="text-[10px] font-bold uppercase tracking-wide bg-amber-200 text-slate-700 px-2 py-1 rounded"
 										>
 											{symbol}
 										</span>
@@ -285,17 +287,17 @@ const NewsSection = ({ symbol }: NewsSectionProps) => {
 									href={article.link}
 									target="_blank"
 									rel="noopener noreferrer"
-									className="text-base font-semibold text-gray-900 mb-3 line-clamp-3 leading-snug hover:text-blue-600 transition-colors block"
+									className="text-base font-semibold text-slate-900 mb-3 line-clamp-3 leading-snug hover:text-amber-700 transition-colors block"
 								>
 									{article.title}
 								</a>
 
-								<div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between">
-									<span className="text-xs text-gray-400">
+								<div className="mt-auto pt-4 border-t border-amber-200 flex items-center justify-between">
+									<span className="text-xs text-slate-500">
 										{formatDate(article.date)}
 									</span>
 
-									<div className="group/tooltip relative flex items-center gap-1 text-xs text-gray-300 hover:text-gray-500 transition-colors">
+									<div className="group/tooltip relative flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 transition-colors">
 										<span className="sr-only">How do we calculate this?</span>
 										<svg
 											className="w-4 h-4"
@@ -330,8 +332,8 @@ const NewsSection = ({ symbol }: NewsSectionProps) => {
 						disabled={loadingMore}
 						className={`px-6 py-2 text-sm font-medium rounded-md border transition-colors ${
 							loadingMore
-								? "bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed"
-								: "bg-gray-100 text-gray-700 border-gray-300 hover:border-gray-200 hover:cursor-pointer"
+								? "bg-amber-200 text-slate-500 border-amber-400 cursor-not-allowed"
+								: "bg-amber-200 text-slate-800 border-amber-400 hover:bg-amber-300 hover:border-amber-500 hover:cursor-pointer"
 						}`}
 					>
 						{loadingMore ? "Loading..." : "See More"}

@@ -13,6 +13,7 @@ import {
 	YAxis,
 } from "recharts";
 import NewsSection from "../components/NewsSection";
+import Spinner from "../components/Spinner";
 import { formatNumber, formatPrice } from "../helpers";
 import type { CoinStats, OhlcvData } from "../types";
 
@@ -301,170 +302,113 @@ const CoinPage = () => {
 	const coinName = coinStats?.name || symbol || "";
 
 	return (
-		<div className="container mx-auto px-4 py-8">
-			<div className="mb-6">
-				{statsLoading ? (
-					<div className="animate-pulse">
-						<div className="h-8 w-64 bg-gray-200 rounded mb-2"></div>
-						<div className="h-10 w-48 bg-gray-200 rounded"></div>
-					</div>
-				) : (
-					<>
-						<h1 className="text-3xl font-semibold text-gray-800 mb-2">
-							{coinName} ({symbol})
-						</h1>
-						{coinStats && (
-							<div className="flex items-baseline gap-3">
-								<span className="text-4xl font-bold text-gray-900">
-									{formatPrice(coinStats.close ?? 0)}
-								</span>
-								<span
-									className={`text-xl font-medium ${
-										priceChange >= 0 ? "text-green-600" : "text-red-500"
-									}`}
-								>
-									{priceChange >= 0 ? "+" : ""}
-									{formatPrice(priceChange)} (
-									{priceChangePercent >= 0 ? "+" : ""}
-									{priceChangePercent.toFixed(1)}%)
-								</span>
-							</div>
-						)}
-					</>
-				)}
-			</div>
-
-			{/* stats + chart */}
-			<div className="flex flex-col lg:flex-row gap-6">
-				{/* stats */}
-				<div className="lg:w-64 shrink-0">
-					{/* technical analysis gauge */}
-					<div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm h-full flex flex-col">
-						<h3 className="text-sm font-semibold text-gray-500 mb-4 uppercase tracking-wider text-center">
-							Technical Analysis
-						</h3>
-
-						<div className="flex justify-center gap-2 mb-4">
-							{(["DAY", "WEEK", "MONTH"] as AnalysisTimePeriod[]).map((p) => (
-								<button
-									key={p}
-									onClick={() => fetchTechnicalAnalysis(p)}
-									className={`px-3 py-1 text-xs rounded-lg border border-gray-200 ${
-										taPeriod === p
-											? "bg-gray-100 border-gray-400 font-medium"
-											: "text-gray-600 hover:bg-gray-100 hover:cursor-pointer"
-									}`}
-								>
-									{p === "DAY" ? "1D" : p === "WEEK" ? "1W" : "1M"}
-								</button>
-							))}
+		<div className="min-h-screen bg-slate-800">
+			<div className="container mx-auto px-4 py-8">
+				<div className="mb-6">
+					{statsLoading ? (
+						<div className="animate-pulse">
+							<div className="h-8 w-64 bg-slate-600 rounded mb-2"></div>
+							<div className="h-10 w-48 bg-slate-600 rounded"></div>
 						</div>
-
-						{taLoading ? (
-							<div className="h-40 flex items-center justify-center">
-								<span className="text-gray-400 text-sm">
-									Loading analysis...
-								</span>
-							</div>
-						) : (
-							<>
-								<div className="relative w-full flex justify-center items-end overflow-hidden pb-4">
-									<GaugeComponent
-										type="semicircle"
-										arc={{
-											width: 0.2,
-											padding: 0.005,
-											cornerRadius: 1,
-											subArcs: SIGNAL_ZONES.map((zone) => ({
-												limit: zone.limit,
-												color: zone.gaugeColor,
-												showTick: zone.showTick,
-												// tooltip: {
-												// 	text: zone.label,
-												// },
-											})),
-										}}
-										pointer={{
-											color: "#345243",
-											length: 0.75,
-											width: 20,
-										}}
-										labels={{
-											valueLabel: { hide: true },
-											tickLabels: {
-												hideMinMax: true,
-											},
-										}}
-										value={mappedScore * 100}
-										minValue={0}
-										maxValue={100}
-									/>
-
-									<div className="absolute bottom-0 left-0 w-full text-center -mb-0.5">
-										<span className={`text-lg font-bold ${signalInfo.color}`}>
-											{signalInfo.label}
-										</span>
-									</div>
-								</div>
-								<div className="flex items-center justify-center gap-1 mt-2 text-xs text-gray-400">
-									<span>Score: {mappedScore.toFixed(2)}</span>
-									<div className="group/tooltip relative flex items-center">
-										<svg
-											className="w-3 h-3 cursor-help"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-										>
-											<path
-												strokeLinecap="round"
-												strokeLinejoin="round"
-												strokeWidth="2"
-												d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-											/>
-										</svg>
-										<div
-											className="hidden group-hover/tooltip:block absolute bottom-full left-1/2 
-										-translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white rounded text-[10px] 
-										z-10 shadow-lg text-center font-light"
-										>
-											The signal score is calculated using oscilator and moving
-											average metrics over the specified period. For more
-											details, visit the{" "}
-											<span className="font-bold">How it works?</span> page.
-										</div>
-									</div>
-								</div>
-							</>
-						)}
-
-						<div className="mt-6 p-4 bg-linear-to-br from-indigo-50 to-blue-50 rounded-xl border border-indigo-100 shadow-sm relative overflow-visible">
-							<h4 className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-2 text-center">
-								Tomorrow's Prediction
-							</h4>
-							{/* todo: != 0.00 is a temp fix, make changes in the script and in the db*/}
-							{prediction &&
-							coinStats &&
-							coinStats.close &&
-							prediction.price != 0.0 &&
-							prediction.price != 1.0 ? (
-								<div className="flex flex-col items-center justify-center">
-									<span className="text-2xl font-bold text-gray-900">
-										{formatPrice(prediction.price)}
+					) : (
+						<>
+							<h1 className="text-3xl font-semibold text-amber-100 mb-2">
+								{coinName} ({symbol})
+							</h1>
+							{coinStats && (
+								<div className="flex items-baseline gap-3">
+									<span className="text-4xl font-bold text-amber-50">
+										{formatPrice(coinStats.close ?? 0)}
 									</span>
 									<span
-										className={`text-sm font-semibold flex items-center gap-1 mt-1 ${
-											prediction.price >= coinStats.close
-												? "text-green-600"
-												: "text-red-500"
+										className={`text-xl font-medium ${
+											priceChange >= 0 ? "text-green-600" : "text-red-500"
 										}`}
 									>
-										{prediction.price >= coinStats.close ? "+" : ""}
-										{(
-											((prediction.price - coinStats.close) / coinStats.close) *
-											100
-										).toFixed(2)}
-										%
-										<div className="group/tooltip relative flex items-center text-gray-400">
+										{priceChange >= 0 ? "+" : ""}
+										{formatPrice(priceChange)} (
+										{priceChangePercent >= 0 ? "+" : ""}
+										{priceChangePercent.toFixed(1)}%)
+									</span>
+								</div>
+							)}
+						</>
+					)}
+				</div>
+
+				{/* stats + chart */}
+				<div className="flex flex-col lg:flex-row gap-6">
+					{/* stats */}
+					<div className="lg:w-64 shrink-0">
+						{/* technical analysis gauge */}
+						<div className="bg-amber-100 rounded-lg border border-amber-400 p-4 shadow-sm h-full flex flex-col">
+							<h3 className="text-sm font-semibold text-slate-600 mb-4 uppercase tracking-wider text-center">
+								Technical Analysis
+							</h3>
+
+							<div className="flex justify-center gap-2 mb-4">
+								{(["DAY", "WEEK", "MONTH"] as AnalysisTimePeriod[]).map((p) => (
+									<button
+										key={p}
+										onClick={() => fetchTechnicalAnalysis(p)}
+										className={`px-3 py-1 text-xs rounded-lg border border-amber-300 ${
+											taPeriod === p
+												? "bg-amber-200 border-amber-500 font-medium"
+												: "text-slate-600 hover:bg-amber-200 hover:cursor-pointer"
+										}`}
+									>
+										{p === "DAY" ? "1D" : p === "WEEK" ? "1W" : "1M"}
+									</button>
+								))}
+							</div>
+
+							{taLoading ? (
+								<div className="h-40 flex items-center justify-center">
+									<Spinner size="md" color="amber" />
+								</div>
+							) : (
+								<>
+									<div className="relative w-full flex justify-center items-end overflow-hidden pb-4">
+										<GaugeComponent
+											type="semicircle"
+											arc={{
+												width: 0.2,
+												padding: 0.005,
+												cornerRadius: 1,
+												subArcs: SIGNAL_ZONES.map((zone) => ({
+													limit: zone.limit,
+													color: zone.gaugeColor,
+													showTick: zone.showTick,
+													// tooltip: {
+													// 	text: zone.label,
+													// },
+												})),
+											}}
+											pointer={{
+												color: "#345243",
+												length: 0.75,
+												width: 20,
+											}}
+											labels={{
+												valueLabel: { hide: true },
+												tickLabels: {
+													hideMinMax: true,
+												},
+											}}
+											value={mappedScore * 100}
+											minValue={0}
+											maxValue={100}
+										/>
+
+										<div className="absolute bottom-0 left-0 w-full text-center -mb-0.5">
+											<span className={`text-lg font-bold ${signalInfo.color}`}>
+												{signalInfo.label}
+											</span>
+										</div>
+									</div>
+									<div className="flex items-center justify-center gap-1 mt-2 text-xs text-slate-500">
+										<span>Score: {mappedScore.toFixed(2)}</span>
+										<div className="group/tooltip relative flex items-center">
 											<svg
 												className="w-3 h-3 cursor-help"
 												fill="none"
@@ -480,322 +424,389 @@ const CoinPage = () => {
 											</svg>
 											<div
 												className="hidden group-hover/tooltip:block absolute bottom-full left-1/2 
-											-translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white 
-											rounded text-[10px] z-10 shadow-lg text-center font-light"
+										-translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white rounded text-[10px] 
+										z-10 shadow-lg text-center font-light"
 											>
-												This prediction is made using an LSTM model. For more
-												details, visit the{" "}
+												The signal score is calculated using oscilator and
+												moving average metrics over the specified period. For
+												more details, visit the{" "}
 												<span className="font-bold">How it works?</span> page.
 											</div>
 										</div>
-									</span>
+									</div>
+									<p className="mt-2 text-xs text-center text-slate-500 italic">
+										This is not financial advice
+									</p>
+								</>
+							)}
+
+							<div className="mt-4 p-4 bg-linear-to-br from-amber-50 to-amber-100 rounded-xl border border-amber-300 shadow-sm relative overflow-visible">
+								<h4 className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2 text-center">
+									Tomorrow's Prediction
+								</h4>
+								{/* todo: != 0.00 is a temp fix, make changes in the script and in the db*/}
+								{prediction &&
+								coinStats &&
+								coinStats.close &&
+								prediction.price != 0.0 &&
+								prediction.price != 1.0 ? (
+									<div className="flex flex-col items-center justify-center">
+										<span className="text-2xl font-bold text-slate-900">
+											{formatPrice(prediction.price)}
+										</span>
+										<span
+											className={`text-sm font-semibold flex items-center gap-1 mt-1 ${
+												prediction.price >= coinStats.close
+													? "text-green-600"
+													: "text-red-500"
+											}`}
+										>
+											{prediction.price >= coinStats.close ? "+" : ""}
+											{(
+												((prediction.price - coinStats.close) /
+													coinStats.close) *
+												100
+											).toFixed(2)}
+											%
+											<div className="group/tooltip relative flex items-center text-slate-500">
+												<svg
+													className="w-3 h-3 cursor-help"
+													fill="none"
+													stroke="currentColor"
+													viewBox="0 0 24 24"
+												>
+													<path
+														strokeLinecap="round"
+														strokeLinejoin="round"
+														strokeWidth="2"
+														d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+													/>
+												</svg>
+												<div
+													className="hidden group-hover/tooltip:block absolute bottom-full left-1/2 
+											-translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white 
+											rounded text-[10px] z-10 shadow-lg text-center font-light"
+												>
+													This prediction is made using an LSTM model. For more
+													details, visit the{" "}
+													<span className="font-bold">How it works?</span> page.
+												</div>
+											</div>
+										</span>
+									</div>
+								) : (
+									<div className="flex items-center justify-center py-2">
+										<span className="text-sm text-slate-600">
+											No prediction available
+										</span>
+									</div>
+								)}
+							</div>
+						</div>
+					</div>
+
+					{/* chart */}
+					<div className="flex-1 flex flex-col">
+						<div className="flex items-center justify-between mb-4">
+							<div className="flex items-center gap-2">
+								<button
+									onClick={() => setChartType("line")}
+									className={`p-2 rounded-lg border border-amber-300 ${
+										chartType === "line"
+											? "bg-amber-200 border-amber-500"
+											: "text-amber-100 hover:bg-amber-200 hover:cursor-pointer"
+									}`}
+									title="Line chart"
+								>
+									<svg
+										width="20"
+										height="20"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2"
+									>
+										<polyline points="22,6 12,13 7,9 2,15" />
+									</svg>
+								</button>
+								<button
+									onClick={() => {
+										setChartType("candle");
+										if (period === "7D") setPeriod("1M");
+									}}
+									className={`p-2 rounded-lg border border-amber-300 ${
+										chartType === "candle"
+											? "bg-amber-200 border-amber-500"
+											: "text-amber-100 hover:bg-amber-200 hover:cursor-pointer"
+									}`}
+									title="Candlestick chart"
+								>
+									<svg
+										width="20"
+										height="20"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2"
+									>
+										<line x1="6" y1="4" x2="6" y2="20" />
+										<rect
+											x="4"
+											y="8"
+											width="4"
+											height="8"
+											fill="currentColor"
+										/>
+										<line x1="18" y1="4" x2="18" y2="20" />
+										<rect x="16" y="6" width="4" height="10" fill="none" />
+									</svg>
+								</button>
+							</div>
+
+							<div className="flex items-center gap-1">
+								{(chartType === "candle"
+									? (["1M", "3M", "1Y", "Max"] as TimePeriod[])
+									: (["7D", "1M", "3M", "1Y", "Max"] as TimePeriod[])
+								).map((p) => (
+									<button
+										key={p}
+										onClick={() => setPeriod(p)}
+										className={`px-3 py-1 text-sm rounded-lg border border-amber-300 ${
+											period === p
+												? "bg-amber-200 border-amber-500"
+												: "text-amber-100 hover:bg-amber-200 hover:cursor-pointer hover:text-slate-900"
+										}`}
+									>
+										{p}
+									</button>
+								))}
+							</div>
+						</div>
+
+						<div className="bg-amber-100 rounded-lg border border-amber-400 shadow-sm p-4 flex-1">
+							{chartLoading ? (
+								<div className="h-80 flex items-center justify-center">
+									<Spinner size="md" color="amber" />
 								</div>
 							) : (
-								<div className="flex items-center justify-center py-2">
-									<span className="text-sm text-gray-500">
-										No prediction available
-									</span>
-								</div>
+								<ResponsiveContainer width="100%" height={380}>
+									{chartType === "line" ? (
+										<LineChart data={chartData}>
+											<XAxis
+												dataKey="date"
+												tick={{ fontSize: 12 }}
+												tickFormatter={(value) => {
+													const date = new Date(value);
+													return date.toLocaleDateString("en-US", {
+														month: "short",
+														day: "numeric",
+													});
+												}}
+											/>
+											<YAxis
+												domain={["auto", "auto"]}
+												tick={{ fontSize: 12 }}
+												tickFormatter={(value) => formatPrice(value)}
+												width={80}
+											/>
+											<Tooltip
+												formatter={(value: number) => [
+													formatPrice(value),
+													"Close",
+												]}
+												labelFormatter={(label) =>
+													new Date(label)
+														.toLocaleDateString()
+														.replace(/-/g, "/")
+												}
+											/>
+											<Line
+												type="monotone"
+												dataKey="close"
+												stroke={priceChange >= 0 ? "#16a34a" : "#dc2626"}
+												strokeWidth={1.5}
+												dot={false}
+											/>
+										</LineChart>
+									) : (
+										<ComposedChart
+											data={mergedCandleData}
+											barGap={-5}
+											barCategoryGap="5%"
+										>
+											<XAxis
+												dataKey="date"
+												tick={{ fontSize: 12 }}
+												tickFormatter={(value) => {
+													const date = new Date(value);
+													return date.toLocaleDateString("en-US", {
+														month: "short",
+														day: "numeric",
+													});
+												}}
+											/>
+											<YAxis
+												domain={["auto", "auto"]}
+												tick={{ fontSize: 12 }}
+												tickFormatter={(value) => formatPrice(value)}
+												width={80}
+											/>
+											<Tooltip
+												content={({ active, payload }) => {
+													if (active && payload && payload.length > 0) {
+														const data = payload[0].payload;
+														return (
+															<div className="bg-white border border-gray-300 rounded p-2 shadow-lg text-sm">
+																<p className="font-medium">{data.dateRange}</p>
+																<p>Open: {formatPrice(data.open)}</p>
+																<p>High: {formatPrice(data.high)}</p>
+																<p>Low: {formatPrice(data.low)}</p>
+																<p>Close: {formatPrice(data.close)}</p>
+															</div>
+														);
+													}
+													return null;
+												}}
+											/>
+											{/* wick - high-low line */}
+											<Bar dataKey="highLow" barSize={2} fill="#374151">
+												{mergedCandleData.map((entry, index) => (
+													<Cell
+														key={`wick-${index}`}
+														fill={entry.isUp ? "#16a34a" : "#dc2626"}
+													/>
+												))}
+											</Bar>
+											{/* body - open-close bar */}
+											<Bar dataKey="openClose" barSize={10}>
+												{mergedCandleData.map((entry, index) => (
+													<Cell
+														key={`body-${index}`}
+														fill={entry.isUp ? "#16a34a" : "#dc2626"}
+													/>
+												))}
+											</Bar>
+										</ComposedChart>
+									)}
+								</ResponsiveContainer>
 							)}
 						</div>
-
-						<p className="mt-6 text-xs text-center text-gray-500 italic">
-							This is not financial advice
-						</p>
 					</div>
 				</div>
 
-				{/* chart */}
-				<div className="flex-1 flex flex-col">
-					<div className="flex items-center justify-between mb-4">
-						<div className="flex items-center gap-2">
-							<button
-								onClick={() => setChartType("line")}
-								className={`p-2 rounded-lg border border-gray-200 ${
-									chartType === "line"
-										? "bg-gray-100 border-gray-400"
-										: "text-gray-600 hover:bg-gray-100 hover:cursor-pointer"
-								}`}
-								title="Line chart"
-							>
-								<svg
-									width="20"
-									height="20"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-								>
-									<polyline points="22,6 12,13 7,9 2,15" />
-								</svg>
-							</button>
-							<button
-								onClick={() => {
-									setChartType("candle");
-									if (period === "7D") setPeriod("1M");
-								}}
-								className={`p-2 rounded-lg border border-gray-200 ${
-									chartType === "candle"
-										? "bg-gray-100 border-gray-400"
-										: "text-gray-600 hover:bg-gray-100 hover:cursor-pointer"
-								}`}
-								title="Candlestick chart"
-							>
-								<svg
-									width="20"
-									height="20"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="2"
-								>
-									<line x1="6" y1="4" x2="6" y2="20" />
-									<rect x="4" y="8" width="4" height="8" fill="currentColor" />
-									<line x1="18" y1="4" x2="18" y2="20" />
-									<rect x="16" y="6" width="4" height="10" fill="none" />
-								</svg>
-							</button>
-						</div>
-
-						<div className="flex items-center gap-1">
-							{(chartType === "candle"
-								? (["1M", "3M", "1Y", "Max"] as TimePeriod[])
-								: (["7D", "1M", "3M", "1Y", "Max"] as TimePeriod[])
-							).map((p) => (
-								<button
-									key={p}
-									onClick={() => setPeriod(p)}
-									className={`px-3 py-1 text-sm rounded-lg border border-gray-200 ${
-										period === p
-											? "bg-gray-100 border-gray-400"
-											: "text-gray-600 hover:bg-gray-100 hover:cursor-pointer"
-									}`}
-								>
-									{p}
-								</button>
-							))}
-						</div>
-					</div>
-
-					<div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 flex-1">
-						{chartLoading ? (
-							<div className="h-80 flex items-center justify-center">
-								<span className="text-gray-500">Loading chart...</span>
+				{/* historic stats below the chart */}
+				{statsLoading ? (
+					<div className="mt-6 bg-amber-100 rounded-lg border border-amber-400 shadow-sm p-6">
+						<div className="animate-pulse space-y-4">
+							<div className="h-6 w-32 bg-amber-200 rounded mx-auto"></div>
+							<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+								{[...Array(3)].map((_, i) => (
+									<div key={i} className="space-y-2">
+										{[...Array(3)].map((_, j) => (
+											<div key={j} className="flex justify-between">
+												<div className="h-4 w-20 bg-amber-200 rounded"></div>
+												<div className="h-4 w-24 bg-amber-200 rounded"></div>
+											</div>
+										))}
+									</div>
+								))}
 							</div>
-						) : (
-							<ResponsiveContainer width="100%" height={380}>
-								{chartType === "line" ? (
-									<LineChart data={chartData}>
-										<XAxis
-											dataKey="date"
-											tick={{ fontSize: 12 }}
-											tickFormatter={(value) => {
-												const date = new Date(value);
-												return date.toLocaleDateString("en-US", {
-													month: "short",
-													day: "numeric",
-												});
-											}}
-										/>
-										<YAxis
-											domain={["auto", "auto"]}
-											tick={{ fontSize: 12 }}
-											tickFormatter={(value) => formatPrice(value)}
-											width={80}
-										/>
-										<Tooltip
-											formatter={(value: number) => [
-												formatPrice(value),
-												"Close",
-											]}
-											labelFormatter={(label) =>
-												new Date(label).toLocaleDateString().replace(/-/g, "/")
-											}
-										/>
-										<Line
-											type="monotone"
-											dataKey="close"
-											stroke={priceChange >= 0 ? "#16a34a" : "#dc2626"}
-											strokeWidth={1.5}
-											dot={false}
-										/>
-									</LineChart>
-								) : (
-									<ComposedChart
-										data={mergedCandleData}
-										barGap={-5}
-										barCategoryGap="5%"
-									>
-										<XAxis
-											dataKey="date"
-											tick={{ fontSize: 12 }}
-											tickFormatter={(value) => {
-												const date = new Date(value);
-												return date.toLocaleDateString("en-US", {
-													month: "short",
-													day: "numeric",
-												});
-											}}
-										/>
-										<YAxis
-											domain={["auto", "auto"]}
-											tick={{ fontSize: 12 }}
-											tickFormatter={(value) => formatPrice(value)}
-											width={80}
-										/>
-										<Tooltip
-											content={({ active, payload }) => {
-												if (active && payload && payload.length > 0) {
-													const data = payload[0].payload;
-													return (
-														<div className="bg-white border border-gray-300 rounded p-2 shadow-lg text-sm">
-															<p className="font-medium">{data.dateRange}</p>
-															<p>Open: {formatPrice(data.open)}</p>
-															<p>High: {formatPrice(data.high)}</p>
-															<p>Low: {formatPrice(data.low)}</p>
-															<p>Close: {formatPrice(data.close)}</p>
-														</div>
-													);
-												}
-												return null;
-											}}
-										/>
-										{/* wick - high-low line */}
-										<Bar dataKey="highLow" barSize={2} fill="#374151">
-											{mergedCandleData.map((entry, index) => (
-												<Cell
-													key={`wick-${index}`}
-													fill={entry.isUp ? "#16a34a" : "#dc2626"}
-												/>
-											))}
-										</Bar>
-										{/* body - open-close bar */}
-										<Bar dataKey="openClose" barSize={10}>
-											{mergedCandleData.map((entry, index) => (
-												<Cell
-													key={`body-${index}`}
-													fill={entry.isUp ? "#16a34a" : "#dc2626"}
-												/>
-											))}
-										</Bar>
-									</ComposedChart>
-								)}
-							</ResponsiveContainer>
-						)}
+						</div>
 					</div>
-				</div>
-			</div>
-
-			{/* historic stats below the chart */}
-			{statsLoading ? (
-				<div className="mt-6 bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-					<div className="animate-pulse space-y-4">
-						<div className="h-6 w-32 bg-gray-200 rounded mx-auto"></div>
+				) : coinStats ? (
+					<div className="mt-6 bg-amber-100 rounded-lg border border-amber-400 shadow-sm p-6">
+						<h3 className="text-lg font-semibold text-slate-800 mb-4 text-center">
+							Historic Statistics
+						</h3>
 						<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-							{[...Array(3)].map((_, i) => (
-								<div key={i} className="space-y-2">
-									{[...Array(3)].map((_, j) => (
-										<div key={j} className="flex justify-between">
-											<div className="h-4 w-20 bg-gray-200 rounded"></div>
-											<div className="h-4 w-24 bg-gray-200 rounded"></div>
-										</div>
-									))}
-								</div>
-							))}
-						</div>
-					</div>
-				</div>
-			) : coinStats ? (
-				<div className="mt-6 bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-					<h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">
-						Historic Statistics
-					</h3>
-					<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-						{/* 24h stats */}
-						<div className="text-center">
-							<h4 className="text-sm font-semibold text-gray-500 mb-3 uppercase tracking-wider">
-								24 Hour
-							</h4>
-							<div className="space-y-2 text-sm">
-								<div className="flex justify-between">
-									<span className="text-gray-500">Low:</span>
-									<span className="font-medium">
-										{coinStats.low24h != null
-											? formatPrice(coinStats.low24h)
-											: "—"}
-									</span>
-								</div>
-								<div className="flex justify-between">
-									<span className="text-gray-500">High:</span>
-									<span className="font-medium">
-										{coinStats.high24h != null
-											? formatPrice(coinStats.high24h)
-											: "—"}
-									</span>
-								</div>
-								<div className="flex justify-between">
-									<span className="text-gray-500">Volume:</span>
-									<span className="font-medium">
-										{coinStats.volume24h != null
-											? formatNumber(coinStats.volume24h)
-											: "—"}
-									</span>
+							{/* 24h stats */}
+							<div className="text-center">
+								<h4 className="text-sm font-semibold text-slate-600 mb-3 uppercase tracking-wider">
+									24 Hour
+								</h4>
+								<div className="space-y-2 text-sm">
+									<div className="flex justify-between">
+										<span className="text-slate-600">Low:</span>
+										<span className="font-medium">
+											{coinStats.low24h != null
+												? formatPrice(coinStats.low24h)
+												: "—"}
+										</span>
+									</div>
+									<div className="flex justify-between">
+										<span className="text-slate-600">High:</span>
+										<span className="font-medium">
+											{coinStats.high24h != null
+												? formatPrice(coinStats.high24h)
+												: "—"}
+										</span>
+									</div>
+									<div className="flex justify-between">
+										<span className="text-slate-600">Volume:</span>
+										<span className="font-medium">
+											{coinStats.volume24h != null
+												? formatNumber(coinStats.volume24h)
+												: "—"}
+										</span>
+									</div>
 								</div>
 							</div>
-						</div>
 
-						{/* 52w stats */}
-						<div className="text-center">
-							<h4 className="text-sm font-semibold text-gray-500 mb-3 uppercase tracking-wider">
-								52 Week
-							</h4>
-							<div className="space-y-2 text-sm">
-								<div className="flex justify-between">
-									<span className="text-gray-500">Low:</span>
-									<span className="font-medium">
-										{coinStats.low52w != null
-											? formatPrice(coinStats.low52w)
-											: "—"}
-									</span>
-								</div>
-								<div className="flex justify-between">
-									<span className="text-gray-500">High:</span>
-									<span className="font-medium">
-										{coinStats.high52w != null
-											? formatPrice(coinStats.high52w)
-											: "—"}
-									</span>
+							{/* 52w stats */}
+							<div className="text-center">
+								<h4 className="text-sm font-semibold text-slate-600 mb-3 uppercase tracking-wider">
+									52 Week
+								</h4>
+								<div className="space-y-2 text-sm">
+									<div className="flex justify-between">
+										<span className="text-slate-600">Low:</span>
+										<span className="font-medium">
+											{coinStats.low52w != null
+												? formatPrice(coinStats.low52w)
+												: "—"}
+										</span>
+									</div>
+									<div className="flex justify-between">
+										<span className="text-slate-600">High:</span>
+										<span className="font-medium">
+											{coinStats.high52w != null
+												? formatPrice(coinStats.high52w)
+												: "—"}
+										</span>
+									</div>
 								</div>
 							</div>
-						</div>
 
-						{/* open/close stats */}
-						<div className="text-center">
-							<h4 className="text-sm font-semibold text-gray-500 mb-3 uppercase tracking-wider">
-								Price Points
-							</h4>
-							<div className="space-y-2 text-sm">
-								<div className="flex justify-between">
-									<span className="text-gray-500">Open:</span>
-									<span className="font-medium">
-										{coinStats.open != null ? formatPrice(coinStats.open) : "—"}
-									</span>
-								</div>
-								<div className="flex justify-between">
-									<span className="text-gray-500">Current:</span>
-									<span className="font-medium">
-										{coinStats.close != null
-											? formatPrice(coinStats.close)
-											: "—"}
-									</span>
+							{/* open/close stats */}
+							<div className="text-center">
+								<h4 className="text-sm font-semibold text-slate-600 mb-3 uppercase tracking-wider">
+									Price Points
+								</h4>
+								<div className="space-y-2 text-sm">
+									<div className="flex justify-between">
+										<span className="text-slate-600">Open:</span>
+										<span className="font-medium">
+											{coinStats.open != null
+												? formatPrice(coinStats.open)
+												: "—"}
+										</span>
+									</div>
+									<div className="flex justify-between">
+										<span className="text-slate-600">Current:</span>
+										<span className="font-medium">
+											{coinStats.close != null
+												? formatPrice(coinStats.close)
+												: "—"}
+										</span>
+									</div>
 								</div>
 							</div>
 						</div>
 					</div>
-				</div>
-			) : null}
+				) : null}
 
-			<NewsSection symbol={symbol} />
+				<NewsSection symbol={symbol} />
+			</div>
 		</div>
 	);
 };
