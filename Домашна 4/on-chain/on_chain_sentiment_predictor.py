@@ -1,218 +1,178 @@
-import pandas as pd
 import os
+import ast
+import logging
+from abc import ABC, abstractmethod
+from typing import List, Optional
 from urllib.parse import quote_plus
+
+import pandas as pd
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, text
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text, Engine
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import cross_val_score
-import ast
-from sklearn.model_selection import TimeSeriesSplit
+from sklearn.model_selection import cross_val_score, TimeSeriesSplit
 
-tscv = TimeSeriesSplit(n_splits=5)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-_db_engine = None
+load_dotenv()
 
-def get_engine():
-    global _db_engine
-    if _db_engine is not None:
-        return _db_engine
+class Config:
+    DB_USER = os.getenv("DB_USER")
+    DB_PASSWORD = os.getenv("DB_PASSWORD")
+    DB_HOST = os.getenv("DB_HOST")
+    DB_PORT = os.getenv("DB_PORT")
+    DB_NAME = os.getenv("DB_NAME")
+    PREDICTION_TABLE = 'on_chain_sentiment_predictions'
 
-    db_user = os.getenv("DB_USER")
-    db_password = os.getenv("DB_PASSWORD")
-    db_host = os.getenv("DB_HOST")
-    db_port = os.getenv("DB_PORT")
-    db_name = os.getenv("DB_NAME")
+class DatabaseManager:
+    _engine: Optional[Engine] = None
 
-    if not all([db_user, db_host, db_port, db_name]):
-        raise RuntimeError("Database credentials are missing.")
+    @classmethod
+    def get_engine(cls) -> Engine:
+        if cls._engine is not None:
+            return cls._engine
+        if not all([Config.DB_USER, Config.DB_HOST, Config.DB_PORT, Config.DB_NAME]):
+            raise RuntimeError("Database credentials are missing.")
+        encoded_password = quote_plus(Config.DB_PASSWORD)
+        connection_str = f"postgresql://{Config.DB_USER}:{encoded_password}@{Config.DB_HOST}:{Config.DB_PORT}/{Config.DB_NAME}"
+        cls._engine = create_engine(connection_str, pool_size=10, max_overflow=20)
+        return cls._engine
 
-    encoded_password = quote_plus(db_password)
-    connection_str = f"postgresql://{db_user}:{encoded_password}@{db_host}:{db_port}/{db_name}"
-    _db_engine = create_engine(connection_str, pool_size=10, max_overflow=20)
-    return _db_engine
+class DataRepository:
+    def __init__(self):
+        self.engine = DatabaseManager.get_engine()
 
-def init_db():
-    engine = get_engine()
-    create_table_sql = """
-    CREATE TABLE IF NOT EXISTS on_chain_sentiment_predictions (
-        id SERIAL PRIMARY KEY,
-        symbol VARCHAR(20) NOT NULL,
-        date DATE NOT NULL,
-        predicted_close NUMERIC,
-        predicted_change_pct NUMERIC
-    );
-    """
-    with engine.connect() as conn:
-        conn.execute(text(create_table_sql))
-        conn.commit()
-    print("Database table checked/created.")
+    def init_table(self):
+        sql = f"""
+        CREATE TABLE IF NOT EXISTS {Config.PREDICTION_TABLE} (
+            id SERIAL PRIMARY KEY,
+            symbol VARCHAR(20) NOT NULL,
+            date DATE NOT NULL,
+            predicted_close NUMERIC,
+            predicted_change_pct NUMERIC
+        );
+        """
+        with self.engine.connect() as conn:
+            conn.execute(text(sql))
+            conn.commit()
 
-def get_sentiment_analysis():
-    print("Fetching news sentiment data...")
-    engine = get_engine()
-    query = "SELECT * FROM news_sentiment"
-    df = pd.read_sql(query, engine, parse_dates=['date'])
-    
-    if 'symbols' in df.columns:
-        def clean_parse(x):
-            if isinstance(x, list): 
-                return x
-            try:
-                return ast.literal_eval(x)
-            except (ValueError, SyntaxError):
-                return [] 
-
-        df['symbols'] = df['symbols'].apply(clean_parse)
+    def fetch_sentiment(self) -> pd.DataFrame:
+        logger.info("Fetching news sentiment data...")
+        df = pd.read_sql("SELECT * FROM news_sentiment", self.engine, parse_dates=['date'])
         
-        df = df.explode('symbols')
+        if 'symbols' in df.columns:
+            def clean_parse(x):
+                if isinstance(x, list): return x
+                try: return ast.literal_eval(x)
+                except (ValueError, SyntaxError): return []
+            
+            df['symbols'] = df['symbols'].apply(clean_parse)
+            df = df.explode('symbols').rename(columns={'symbols': 'symbol'})
+            df.dropna(subset=['symbol'], inplace=True)
+            df['symbol'] = df['symbol'].astype(str).str.strip()
+        return df
+
+    def fetch_onchain(self) -> pd.DataFrame:
+        logger.info("Fetching on-chain metrics...")
+        return pd.read_sql("SELECT * FROM onchain_metrics", self.engine, parse_dates=['date'])
+
+    def fetch_ohlcv(self) -> pd.DataFrame:
+        logger.info("Fetching OHLCV data...")
+        return pd.read_sql("SELECT close, symbol, date FROM ohlcv_data", self.engine, parse_dates=['date'])
+
+    def save_predictions(self, df: pd.DataFrame):
+        logger.info(f"Saving {len(df)} predictions to DB...")
+        try:
+            df.to_sql(Config.PREDICTION_TABLE, self.engine, if_exists='append', index=False, method='multi')
+            logger.info("Saved successfully.")
+        except Exception as e:
+            logger.error(f"Failed to save predictions: {e}")
+
+class PredictionStrategy(ABC):
+
+    @abstractmethod
+    def train_and_predict(self, train_df: pd.DataFrame, latest_df: pd.DataFrame, feature_cols: List[str]) -> pd.DataFrame:
+        pass
+
+class RandomForestStrategy(PredictionStrategy):
+    def __init__(self, n_estimators=300):
+        self.model = RandomForestRegressor(n_estimators=n_estimators, random_state=42, n_jobs=-1)
+        self.scaler = StandardScaler()
+
+    def train_and_predict(self, train_df: pd.DataFrame, latest_df: pd.DataFrame, feature_cols: List[str]) -> pd.DataFrame:
+        X_train = train_df[feature_cols]
+        y_train = train_df['target_next_close']
         
-        df = df.rename(columns={'symbols': 'symbol'})
+        X_scaled = self.scaler.fit_transform(X_train)
+        tscv = TimeSeriesSplit(n_splits=5)
+        scores = cross_val_score(self.model, X_scaled, y_train, cv=tscv, scoring='r2')
+        logger.info(f"Model CV R²: {scores.mean():.4f}")
+
+        self.model.fit(X_scaled, y_train)
+
+        X_latest = latest_df[feature_cols]
+        X_latest_scaled = self.scaler.transform(X_latest)
         
-        df = df.dropna(subset=['symbol'])
-        df['symbol'] = df['symbol'].astype(str).str.strip()
-
-    return df
-
-def get_on_chain_metrics():
-    print("Fetching on-chain metrics...")
-    engine = get_engine()
-    query = "SELECT * FROM onchain_metrics"
-    df = pd.read_sql(query, engine, parse_dates=['date'])
-
-    return df
-
-def merge_dfs(sentiment_df, on_chain_df, close_df):
-    print("Merging datasets...")
-    sentiment_subset = sentiment_df[['symbol', 'date', 'sentiment_score']]
-
-    merged_step_1 = pd.merge(
-        on_chain_df, 
-        sentiment_subset, 
-        on=['symbol', 'date'], 
-        how='inner'
-    )
-
-    final_merged_df = pd.merge(
-        merged_step_1, 
-        close_df, 
-        on=['symbol', 'date'], 
-        how='inner'
-    )
-
-    return final_merged_df
-
-def get_close():
-    engine=get_engine()
-    query='SELECT close,symbol,date from ohlcv_data'
-    df=pd.read_sql(query, engine, parse_dates=['date'])
-    return df
-    
-def predict(df):
-    print(f"Starting prediction pipeline with {len(df)} rows...")
-    df = df.copy()
-    df['date'] = pd.to_datetime(df['date'])
-    df = df.sort_values(['symbol', 'date'])
-    df['target_next_close'] = df.groupby('symbol')['close'].shift(-1)
-
-    EXCLUDE_COLS = {
-        'id',
-        'symbol',
-        'date',
-        'target_next_close'
+        predictions = latest_df.copy()
+        predictions['predicted_close'] = self.model.predict(X_latest_scaled)
         
-    }
+        return predictions
 
-    feature_cols = [
-        c for c in df.columns
-        if c not in EXCLUDE_COLS 
-    ]
+class PredictionService:
+    def __init__(self, strategy: PredictionStrategy):
+        self.repo = DataRepository()
+        self.strategy = strategy
 
-    train_df = df.dropna(subset=['target_next_close'])
-    latest_df = (
-        df[df['target_next_close'].isna()]
-        .groupby('symbol')
-        .tail(1)
-    )
+    def prepare_data(self) -> Optional[pd.DataFrame]:
+        sent_df = self.repo.fetch_sentiment()
+        chain_df = self.repo.fetch_onchain()
+        price_df = self.repo.fetch_ohlcv()
 
-    if train_df.empty or latest_df.empty:
-        print("Not enough data to train or predict.")
-        return
+        if sent_df.empty or chain_df.empty:
+            logger.warning("Missing input data.")
+            return None
 
-    X_train = train_df[feature_cols]
-    y_train = train_df['target_next_close']
+        logger.info("Merging datasets...")
+        merged = pd.merge(chain_df, sent_df[['symbol', 'date', 'sentiment_score']], on=['symbol', 'date'], how='inner')
+        final_df = pd.merge(merged, price_df, on=['symbol', 'date'], how='inner')
+        
+        final_df = final_df.sort_values(['symbol', 'date'])
+        final_df['target_next_close'] = final_df.groupby('symbol')['close'].shift(-1)
+        
+        return final_df
 
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
+    def run_pipeline(self):
+        self.repo.init_table()
+        df = self.prepare_data()
+        
+        if df is None or df.empty:
+            logger.warning("No data available for prediction.")
+            return
 
-    model = RandomForestRegressor(
-        n_estimators=300,
-        random_state=42,
-        n_jobs=-1
-    )
+        train_df = df.dropna(subset=['target_next_close'])
+        latest_df = df[df['target_next_close'].isna()].groupby('symbol').tail(1)
 
-    cv_scores = cross_val_score(
-        model,
-        X_train_scaled,
-        y_train,
-        cv=tscv,
-        scoring='r2'
-    )
+        if train_df.empty or latest_df.empty:
+            logger.warning("Not enough data to train.")
+            return
 
-    print(f"CV R² scores: {cv_scores}")
-    print(f"Mean CV R²: {cv_scores.mean():.4f}")
+        exclude = {'id', 'symbol', 'date', 'target_next_close'}
+        features = [c for c in df.columns if c not in exclude]
 
-    model.fit(X_train_scaled, y_train)
+        result_df = self.strategy.train_and_predict(train_df, latest_df, features)
 
-    X_latest = latest_df[feature_cols]
-    X_latest_scaled = scaler.transform(X_latest)
-
-    latest_df = latest_df.copy()
-    latest_df['predicted_close'] = model.predict(X_latest_scaled)
-
-    latest_df['predicted_change_pct'] = (
-        (latest_df['predicted_close'] - latest_df['close'])
-        / latest_df['close']
-    ) * 100
-
-    latest_df['date'] = latest_df['date'] + pd.Timedelta(days=1)
-
-    db_output = latest_df[
-        ['symbol', 'date', 'predicted_close', 'predicted_change_pct']
-    ]
-
-    try:
-        engine = get_engine()
-        db_output.to_sql(
-            'onchain_sentiment_predictions',
-            engine,
-            if_exists='append',
-            index=False,
-            method='multi'
-        )
-       
-    except Exception as e:
-        print(f"Exception")
-
+        result_df['predicted_change_pct'] = (
+            (result_df['predicted_close'] - result_df['close']) / result_df['close']
+        ) * 100
+        
+        # Shift date to tomorrow (since we predicted the NEXT close)
+        result_df['date'] = result_df['date'] + pd.Timedelta(days=1)
+        
+        output = result_df[['symbol', 'date', 'predicted_close', 'predicted_change_pct']]
+        self.repo.save_predictions(output)
 
 if __name__ == "__main__":
-    load_dotenv()
-
-    try:
-        init_db()
-        sentiment_df = get_sentiment_analysis()
-        on_chain_df = get_on_chain_metrics()
-        close_df=get_close()
-        if not sentiment_df.empty and not on_chain_df.empty:
-            training_data = merge_dfs(sentiment_df, on_chain_df,close_df)
-            
-            if not training_data.empty:
-                predict(training_data)
-            else:
-                print("Df is empty")
-        else:
-            print("Error")
-
-    except Exception as e:
-        print(f"An error occurred: {e}")
+    strategy = RandomForestStrategy() 
+    service = PredictionService(strategy)
+    service.run_pipeline()
