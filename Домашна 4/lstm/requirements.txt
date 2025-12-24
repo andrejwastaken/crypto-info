@@ -1,0 +1,7 @@
+torch
+pandas
+numpy
+sqlalchemy
+python-dotenv
+scikit-learn
+psycopg2-binary

@@ -1,0 +1,16 @@
+pandas
+numpy
+transformers
+torch
+scikit-learn
+tqdm
+psycopg2-binary
+python-dotenv
+dateparser
+bs4
+selenium
+webdriver_manager
+transformers
+scikit-learn
+torch
+psycopg2
