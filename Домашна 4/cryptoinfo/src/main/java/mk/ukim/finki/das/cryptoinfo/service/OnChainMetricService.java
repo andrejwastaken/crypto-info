@@ -4,6 +4,7 @@ import mk.ukim.finki.das.cryptoinfo.model.OnChainMetric;
 import mk.ukim.finki.das.cryptoinfo.repository.OnChainMetricRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -15,6 +16,7 @@ public class OnChainMetricService {
     }
 
     public List<OnChainMetric> getOnChainForToday(){
-        return repository.findTop4ByOrderByDateDesc();
+        LocalDate date = repository.findMaxDate();
+        return repository.findByDate(date);
     }
 }

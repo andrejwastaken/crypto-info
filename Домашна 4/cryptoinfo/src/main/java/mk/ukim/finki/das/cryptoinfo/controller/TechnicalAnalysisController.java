@@ -20,7 +20,8 @@ public class TechnicalAnalysisController {
     public ResponseEntity<Double> getDataForSymbol(
             @PathVariable @NotNull String symbol,
             @RequestParam TechnicalAnalysisTimePeriod period){
-        // todo: add error handling
-        return ResponseEntity.ok(technicalAnalysisService.getScoreForSymbol(symbol, period));
+        Double scoreForSymbol = technicalAnalysisService.getScoreForSymbol(symbol, period);
+        if (scoreForSymbol == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(scoreForSymbol);
     }
 }

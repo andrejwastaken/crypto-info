@@ -444,7 +444,6 @@ const CoinPage = () => {
 								<h4 className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2 text-center">
 									Tomorrow's Prediction
 								</h4>
-								{/* todo: != 0.00 is a temp fix, make changes in the script and in the db*/}
 								{prediction &&
 								coinStats &&
 								coinStats.close &&
