@@ -159,10 +159,10 @@ class HashRateStrategy(MetricStrategy):
                 start_time=start_date
             ).to_dataframe()
             if not data.empty:
-                data.rename(columns={'HashRate': 'security_Value'}, inplace=True)
+                data.rename(columns={'HashRate': 'security_value'}, inplace=True)
                 data['metric_name'] = 'Hashrate (TH/s)'
                 # Convert to Terahashes as per original script
-                data['security_Value'] = data['security_Value'].astype(float) / 1_000_000_000_000
+                data['security_value'] = data['security_value'].astype(float) / 1_000_000_000_000
             return data
         except Exception:
             return pd.DataFrame()
@@ -333,7 +333,7 @@ class CryptoDataAggregator:
 
         
         final_columns = [
-            'join_date', 'join_symbol', 'chain', 'tvl_usd', 'metric_name', 'security_Value'
+            'join_date', 'join_symbol', 'chain', 'tvl_usd', 'metric_name', 'security_value'
         ]
         
         for col in final_columns:
@@ -349,7 +349,7 @@ class CryptoDataAggregator:
 
         
         final_df['tvl_usd'] = final_df['tvl_usd'].fillna(0)
-        final_df['security_Value'] = final_df['security_Value'].fillna(0)
+        final_df['security_value'] = final_df['security_value'].fillna(0)
 
     
         final_df['symbol'] = final_df['symbol'].apply(lambda x: f"{x}-USD" if x and not str(x).endswith("-USD") else x)

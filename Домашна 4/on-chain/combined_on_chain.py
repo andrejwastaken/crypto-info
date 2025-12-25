@@ -96,8 +96,6 @@ class OnChainMergerPipeline(ETLPipeline):
         df_santiment = data.get("santiment", pd.DataFrame())
 
         if not df_tvl_sec.empty:
-            if 'Security_Value' in df_tvl_sec.columns:
-                df_tvl_sec.rename(columns={'Security_Value': 'security_value'}, inplace=True)
             df_tvl_sec['date'] = pd.to_datetime(df_tvl_sec['date'])
             df_tvl_sec['join_date'] = df_tvl_sec['date'].dt.date
             df_tvl_sec['join_symbol'] = df_tvl_sec['symbol'].str.upper()
@@ -123,11 +121,18 @@ class OnChainMergerPipeline(ETLPipeline):
         merged_df['final_date'] = merged_df['date'].combine_first(merged_df['datetime'])
         merged_df['final_symbol'] = merged_df['symbol'].combine_first(merged_df['ticker'])
 
-        cols_to_drop = ['join_date', 'join_symbol', 'date', 'symbol', 'datetime', 'ticker', 'chain', 'Metric_name']
+        cols_to_drop = ['join_date', 'join_symbol', 'date', 'symbol', 'datetime', 'ticker', 'chain', 'Metric_name', 'metric_name']
         merged_df.drop(columns=[c for c in cols_to_drop if c in merged_df.columns], inplace=True)
         
         merged_df.rename(columns={'final_date': 'date', 'final_symbol': 'symbol'}, inplace=True)
         merged_df.fillna(0, inplace=True)
+        
+        # Ensure integer types for BIGINT columns
+        int_cols = ['active_addresses', 'transactions', 'tvl_usd']
+        for col in int_cols:
+            if col in merged_df.columns:
+                merged_df[col] = merged_df[col].astype(int)
+                
         merged_df.sort_values(by=['symbol', 'date'], inplace=True)
 
         # Reorder columns to ensure date/symbol are first
@@ -162,14 +167,14 @@ class OnChainMergerPipeline(ETLPipeline):
 
             logger.info(f"Loading {len(df)} rows into database '{Config.TABLE_NAME}'...")
             print(df.head())
-            # df.to_sql(
-            #     name=Config.TABLE_NAME,
-            #     con=engine,
-            #     if_exists='append',
-            #     index=False,
-            #     method='multi',
-            #     chunksize=1000
-            # )
+            df.to_sql(
+                name=Config.TABLE_NAME,
+                con=engine,
+                if_exists='append',
+                index=False,
+                method='multi',
+                chunksize=1000
+            )
             logger.info("Data load complete.")
             
         except Exception as e:
