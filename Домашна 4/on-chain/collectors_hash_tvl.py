@@ -9,26 +9,24 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Dict
 from pathlib import Path
 from dotenv import load_dotenv
-
+from coinmetrics.api_client import CoinMetricsClient
 
 sys.path.append(str(Path(__file__).parent.parent))
 from database.database import DatabaseManager
 
-
-from collectors_hash import SecurityDataCollector
-
 load_dotenv()
 
+POW_COINS = {'btc', 'doge', 'ltc', 'bch', 'kda', 'etc', 'xmr', 'rvn'}
+POS_COINS = {'eth', 'sol', 'bnb', 'sui', 'avax', 'ada', 'algo', 'xtz', 'pol', 'atom'}
 
 class Config:
     DEFILLAMA_CHAINS_URL = "https://api.llama.fi/v2/chains"
     DEFILLAMA_HISTORICAL_TVL_URL = "https://api.llama.fi/v2/historicalChainTvl"
     TIMEOUT = 15
 
-
 # Template
 class DataCollector(ABC):
-  
+    
     def collect(self, symbols: List[str]) -> pd.DataFrame:
         if not symbols:
             return pd.DataFrame()
@@ -41,10 +39,12 @@ class DataCollector(ABC):
         pass
 
 
+
 class TVLCollector(DataCollector):
     def _fetch_data(self, symbols: List[str]) -> pd.DataFrame:
         dynamic_map = self._build_dynamic_chain_map()
         
+     
         cleaned_symbols = self._clean_symbols(symbols)
         
         matched_chains = {}
@@ -55,12 +55,13 @@ class TVLCollector(DataCollector):
         unique_chains = set(matched_chains.values())
         chain_cache = {}
         
-        print(f"Fetching TVL for {len(unique_chains)} chains")
+    
         
         for chain in unique_chains:
             df = self._fetch_historical_tvl(chain)
             if not df.empty:
                 chain_cache[chain] = df
+                print(f"Found {len(df)} records for {chain}.")
             else:
                 print(f"No data for {chain}.")
             time.sleep(0.5) 
@@ -91,6 +92,7 @@ class TVLCollector(DataCollector):
         return list(set(cleaned))
 
     def _build_dynamic_chain_map(self) -> Dict[str, str]:
+      
         try:
             response = requests.get(Config.DEFILLAMA_CHAINS_URL, timeout=Config.TIMEOUT)
             response.raise_for_status()
@@ -103,6 +105,7 @@ class TVLCollector(DataCollector):
                 
                 if chain_name and token_symbol:
                     token_symbol = token_symbol.upper()
+                    
                     if token_symbol in token_to_chain:
                         if chain_name.upper() == token_symbol:
                             token_to_chain[token_symbol] = chain_name
@@ -110,6 +113,7 @@ class TVLCollector(DataCollector):
                         token_to_chain[token_symbol] = chain_name
             return token_to_chain
         except Exception as e:
+            
             return {}
 
     def _fetch_historical_tvl(self, chain_name: str) -> pd.DataFrame:
@@ -134,16 +138,138 @@ class TVLCollector(DataCollector):
             return pd.DataFrame()
 
 
-# Adapter pattern
-class SecurityCollectorAdapter(DataCollector):
+# Strategy
+class MetricStrategy(ABC):
+  
+    def __init__(self, client: CoinMetricsClient):
+        self.client = client
+
+    @abstractmethod
+    def fetch_metric(self, asset: str, start_date: str) -> pd.DataFrame:
+        pass
+
+class HashRateStrategy(MetricStrategy):
+    
+    def fetch_metric(self, asset: str, start_date: str) -> pd.DataFrame:
+        try:
+            data = self.client.get_asset_metrics(
+                assets=asset,
+                metrics="HashRate",
+                frequency="1d",
+                start_time=start_date
+            ).to_dataframe()
+            if not data.empty:
+                data.rename(columns={'HashRate': 'security_Value'}, inplace=True)
+                data['metric_name'] = 'Hashrate (TH/s)'
+                # Convert to Terahashes as per original script
+                data['security_Value'] = data['security_Value'].astype(float) / 1_000_000_000_000
+            return data
+        except Exception:
+            return pd.DataFrame()
+
+class PoSMarketCapStrategy(MetricStrategy):
+    
+    def fetch_metric(self, asset: str, start_date: str) -> pd.DataFrame:
+        try:
+            data = self.client.get_asset_metrics(
+                assets=asset,
+                metrics="CapMrktCurUSD",
+                frequency="1d",
+                start_time=start_date
+            ).to_dataframe()
+            if not data.empty:
+                data.rename(columns={'CapMrktCurUSD': 'security_value'}, inplace=True)
+                data['metric_name'] = 'PoS Economic Security ($USD)'
+            return data
+        except Exception:
+            return pd.DataFrame()
+
+class DefaultMarketCapStrategy(MetricStrategy):
    
+    def fetch_metric(self, asset: str, start_date: str) -> pd.DataFrame:
+        try:
+            data = self.client.get_asset_metrics(
+                assets=asset,
+                metrics="CapMrktCurUSD",
+                frequency="1d",
+                start_time=start_date
+            ).to_dataframe()
+            if not data.empty:
+                data.rename(columns={'CapMrktCurUSD': 'security_value'}, inplace=True)
+                data['metric_name'] = 'Market Cap ($USD)'
+            return data
+        except Exception:
+            return pd.DataFrame()
+
+# Factory 
+
+class StrategyFactory:
+   
+    def __init__(self, client: CoinMetricsClient):
+        self.client = client
+
+    def get_strategy(self, asset: str) -> MetricStrategy:
+        asset_lower = asset.lower()
+        if asset_lower in POW_COINS:
+            return HashRateStrategy(self.client)
+        elif asset_lower in POS_COINS:
+            return PoSMarketCapStrategy(self.client)
+        else:
+            
+            return DefaultMarketCapStrategy(self.client)
+
+
+
+# Fascade
+class SecurityDataCollector:
+   
+    def __init__(self):
+        self.client = CoinMetricsClient()
+        self.factory = StrategyFactory(self.client)
+
+    def _clean_ticker(self, ticker: str) -> Optional[str]:
+        if not ticker: return None
+        base = ticker.replace("-USD", "").replace("-usd", "")
+        base = re.sub(r'\d+', '', base)
+        return base.lower()
+
+    def fetch_data(self, raw_symbols: List[str]) -> pd.DataFrame:
+        start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
+        clean_assets = list(set([self._clean_ticker(s) for s in raw_symbols if self._clean_ticker(s)]))
+        
+        results = []
+        print(f"Fetching security data for {len(clean_assets)} assets...")
+
+        for asset in clean_assets:
+            strategy = self.factory.get_strategy(asset)
+            
+            try:
+                df = strategy.fetch_metric(asset, start_date)
+                if not df.empty:
+                    results.append(df)
+            except Exception as e:
+                print(f"Error fetching data for {asset}: {e}")
+
+        if results:
+            final_df = pd.concat(results, ignore_index=True)
+        
+            if 'time' in final_df.columns:
+                final_df['time'] = pd.to_datetime(final_df['time'])
+            return final_df
+        
+        return pd.DataFrame()
+
+# Adapter
+class SecurityCollectorAdapter(DataCollector):
+  
     def __init__(self):
         self.collector = SecurityDataCollector()
 
     def _fetch_data(self, symbols: List[str]) -> pd.DataFrame:
         return self.collector.fetch_data(symbols)
 
-# Facade for data aggregation
+
+# Fascade
 class CryptoDataAggregator:
    
     def __init__(self):
@@ -170,39 +296,44 @@ class CryptoDataAggregator:
         df_tvl = self.tvl_collector.collect(symbols)
         df_security = self.security_collector.collect(symbols)
 
-       
-        if df_tvl.empty:
-            print("No TVL data found.")
+        if df_tvl.empty and df_security.empty:
+            print("No data found from either source.")
             return pd.DataFrame()
 
-      
-        if df_security.empty:
-            df_security = pd.DataFrame(columns=['time', 'asset', 'Metric_Name', 'Security_Value'])
-        else:
+        if not df_security.empty:
             df_security['time'] = pd.to_datetime(df_security['time'])
             df_security['join_date'] = df_security['time'].dt.date
             df_security['join_symbol'] = df_security['asset'].str.upper()
 
-    
-        df_tvl['date'] = pd.to_datetime(df_tvl['date'])
-        df_tvl['join_date'] = df_tvl['date'].dt.date
-        df_tvl['join_symbol'] = df_tvl['symbol'].str.upper()
+        if not df_tvl.empty:
+            df_tvl['date'] = pd.to_datetime(df_tvl['date'])
+            df_tvl['join_date'] = df_tvl['date'].dt.date
+            df_tvl['join_symbol'] = df_tvl['symbol'].str.upper()
 
-
-        if not df_security.empty:
+        if not df_tvl.empty and not df_security.empty:
             merged_df = pd.merge(
                 df_tvl,
                 df_security,
                 on=['join_date', 'join_symbol'],
-                how='left'
+                how='outer'
             )
-        else:
+            merged_df['date'] = merged_df['date'].fillna(merged_df['time'])
+            merged_df['symbol'] = merged_df['symbol'].fillna(merged_df['asset'])
+            
+        elif not df_tvl.empty:
             merged_df = df_tvl.copy()
-            merged_df['Metric_Name'] = None
-            merged_df['Security_Value'] = None
+            merged_df['metric_name'] = None
+            merged_df['security_value'] = None
+        else: 
+            merged_df = df_security.copy()
+            merged_df['date'] = merged_df['time']
+            merged_df['symbol'] = merged_df['asset']
+            merged_df['chain'] = None
+            merged_df['tvl_usd'] = None
 
+        
         final_columns = [
-            'join_date', 'join_symbol', 'chain', 'tvl_usd', 'Metric_Name', 'Security_Value'
+            'join_date', 'join_symbol', 'chain', 'tvl_usd', 'metric_name', 'security_Value'
         ]
         
         for col in final_columns:
@@ -213,12 +344,19 @@ class CryptoDataAggregator:
         final_df.rename(columns={
             'join_date': 'date',
             'join_symbol': 'symbol',
-            'Metric_Name': 'security_metric',
-            'Security_Value': 'security_value'
+            
         }, inplace=True)
 
-        final_df = final_df.fillna(0)
-        final_df['symbol'] = final_df['symbol'].apply(lambda x: f"{x}-USD" if not str(x).endswith("-USD") else x)
+        
+        final_df['tvl_usd'] = final_df['tvl_usd'].fillna(0)
+        final_df['security_Value'] = final_df['security_Value'].fillna(0)
+
+    
+        final_df['symbol'] = final_df['symbol'].apply(lambda x: f"{x}-USD" if x and not str(x).endswith("-USD") else x)
+        
+        
+        final_df.dropna(subset=['date', 'symbol'], inplace=True)
+        
         final_df.sort_values(by=['symbol', 'date'], inplace=True)
 
         return final_df

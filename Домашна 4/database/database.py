@@ -14,12 +14,7 @@ class Config:
     DB_PORT = os.getenv("DB_PORT")
     DB_NAME = os.getenv("DB_NAME")
     
-    SANTIMENT_URL = "https://api.santiment.net/graphql"
-    TOTAL_DAYS = 365
-    WINDOW_DAYS = 30
-    IGNORE_TICKERS = {"SUI20947-USD", "HBAR-USD"}
-    MISSING_COLUMNS_THRESHOLD = 2
-
+   
 class DatabaseManager:
    
     _engine: Optional[Engine] = None

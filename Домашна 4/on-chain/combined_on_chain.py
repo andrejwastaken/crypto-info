@@ -6,7 +6,7 @@ from urllib.parse import quote_plus
 from dotenv import load_dotenv
 import pandas as pd
 from sqlalchemy import create_engine, text, Engine
-from join_collectors_hash_tvl import join_csvs as get_tvl_security_data
+from collectors_hash_tvl import CryptoDataAggregator
 from collectors_others import OnChainDataService 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -76,7 +76,8 @@ class OnChainMergerPipeline(ETLPipeline):
         logger.info("Extracting data from sources...")
         data = {}
         try:
-            data['tvl'] = get_tvl_security_data()
+            aggregator = CryptoDataAggregator()
+            data['tvl_security'] = aggregator.aggregate()
         except Exception as e:
             logger.error(f"Failed to get TVL data: {e}")
 
@@ -91,13 +92,15 @@ class OnChainMergerPipeline(ETLPipeline):
 
     def transform(self, data: Dict[str, pd.DataFrame]) -> pd.DataFrame:
         logger.info("Transforming and merging datasets...")
-        df_tvl = data.get("tvl", pd.DataFrame())
+        df_tvl_sec = data.get("tvl_security", pd.DataFrame())
         df_santiment = data.get("santiment", pd.DataFrame())
 
-        if not df_tvl.empty:
-            df_tvl['date'] = pd.to_datetime(df_tvl['date'])
-            df_tvl['join_date'] = df_tvl['date'].dt.date
-            df_tvl['join_symbol'] = df_tvl['symbol'].str.upper()
+        if not df_tvl_sec.empty:
+            if 'Security_Value' in df_tvl_sec.columns:
+                df_tvl_sec.rename(columns={'Security_Value': 'security_value'}, inplace=True)
+            df_tvl_sec['date'] = pd.to_datetime(df_tvl_sec['date'])
+            df_tvl_sec['join_date'] = df_tvl_sec['date'].dt.date
+            df_tvl_sec['join_symbol'] = df_tvl_sec['symbol'].str.upper()
 
         # Pre-processing Santiment Data
         if not df_santiment.empty:
@@ -107,7 +110,7 @@ class OnChainMergerPipeline(ETLPipeline):
 
         # Merge
         merged_df = pd.merge(
-            df_tvl,
+            df_tvl_sec,
             df_santiment,
             on=['join_date', 'join_symbol'],
             how='inner'
@@ -120,7 +123,7 @@ class OnChainMergerPipeline(ETLPipeline):
         merged_df['final_date'] = merged_df['date'].combine_first(merged_df['datetime'])
         merged_df['final_symbol'] = merged_df['symbol'].combine_first(merged_df['ticker'])
 
-        cols_to_drop = ['join_date', 'join_symbol', 'date', 'symbol', 'datetime', 'ticker', 'chain', 'security_metric']
+        cols_to_drop = ['join_date', 'join_symbol', 'date', 'symbol', 'datetime', 'ticker', 'chain', 'Metric_name']
         merged_df.drop(columns=[c for c in cols_to_drop if c in merged_df.columns], inplace=True)
         
         merged_df.rename(columns={'final_date': 'date', 'final_symbol': 'symbol'}, inplace=True)
@@ -158,15 +161,15 @@ class OnChainMergerPipeline(ETLPipeline):
                 conn.commit()
 
             logger.info(f"Loading {len(df)} rows into database '{Config.TABLE_NAME}'...")
-            
-            df.to_sql(
-                name=Config.TABLE_NAME,
-                con=engine,
-                if_exists='append',
-                index=False,
-                method='multi',
-                chunksize=1000
-            )
+            print(df.head())
+            # df.to_sql(
+            #     name=Config.TABLE_NAME,
+            #     con=engine,
+            #     if_exists='append',
+            #     index=False,
+            #     method='multi',
+            #     chunksize=1000
+            # )
             logger.info("Data load complete.")
             
         except Exception as e:
@@ -175,3 +178,5 @@ class OnChainMergerPipeline(ETLPipeline):
 if __name__ == "__main__":
     pipeline = OnChainMergerPipeline()
     pipeline.run()
+
+    
