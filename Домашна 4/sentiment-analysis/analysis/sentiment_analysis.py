@@ -291,7 +291,7 @@ class SentimentPipeline:
         data = None
         for step in self.steps:
             data = step.process(data)
-            if data is not None and data.empty and not isinstance(step, DataIngestionStep):
+            if data is not None and data.empty and not isinstance(step, DataIngestion):
                 print("Pipeline stopped: Dataframe is empty.")
                 break
         print("Pipeline execution finished.")
