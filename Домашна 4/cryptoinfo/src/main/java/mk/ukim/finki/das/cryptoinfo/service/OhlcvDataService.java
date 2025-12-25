@@ -1,7 +1,6 @@
 package mk.ukim.finki.das.cryptoinfo.service;
 
-import java.time.LocalDate;
-
+import lombok.RequiredArgsConstructor;
 import mk.ukim.finki.das.cryptoinfo.model.LowHighProjection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,23 +11,12 @@ import mk.ukim.finki.das.cryptoinfo.model.OhlcvData;
 import mk.ukim.finki.das.cryptoinfo.repository.OhlcvDataRepository;
 
 @Service
+@RequiredArgsConstructor
 public class OhlcvDataService {
     private final OhlcvDataRepository repository;
 
-    public OhlcvDataService(OhlcvDataRepository repository) {
-        this.repository = repository;
-    }
-
-    public OhlcvData getDataForSymbol(String symbol){
-        return repository.findFirstBySymbolOrderByDateDesc(symbol);
-    }
-
     public Page<OhlcvData> getDataForSymbol(String symbol, Pageable pageable){
         return repository.findBySymbol(symbol, pageable);
-    }
-
-    public Page<OhlcvData> getByDate(LocalDate date, Pageable pageable){
-        return repository.findByDate(date, pageable);
     }
     
     public CoinStatsDTO getCoinStats(String symbol) {

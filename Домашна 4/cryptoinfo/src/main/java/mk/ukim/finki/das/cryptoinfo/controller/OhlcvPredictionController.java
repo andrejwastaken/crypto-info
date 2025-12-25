@@ -1,5 +1,6 @@
 package mk.ukim.finki.das.cryptoinfo.controller;
 
+import lombok.RequiredArgsConstructor;
 import mk.ukim.finki.das.cryptoinfo.dto.ExtremesDTO;
 import mk.ukim.finki.das.cryptoinfo.model.OhlcvPrediction;
 import mk.ukim.finki.das.cryptoinfo.service.OhlcvPredictionService;
@@ -10,12 +11,9 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @CrossOrigin(origins="*")
 @RequestMapping("/api/prediction")
+@RequiredArgsConstructor
 public class OhlcvPredictionController {
     private final OhlcvPredictionService ohlcvPredictionService;
-
-    public OhlcvPredictionController(OhlcvPredictionService ohlcvPredictionService) {
-        this.ohlcvPredictionService = ohlcvPredictionService;
-    }
 
     @GetMapping("/{symbol}")
     public HttpEntity<OhlcvPrediction> getPredictionForSymbol(@PathVariable String symbol){

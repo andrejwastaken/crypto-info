@@ -11,10 +11,12 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
+import org.hibernate.annotations.Immutable;
 
 @Entity
 @Table(name = "on_chain_sentiment_predictions")
 @Getter
+@Immutable
 public class OnChainSentimentPrediction {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)

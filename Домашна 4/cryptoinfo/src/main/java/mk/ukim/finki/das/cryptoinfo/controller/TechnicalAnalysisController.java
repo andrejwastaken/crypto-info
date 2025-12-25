@@ -1,6 +1,7 @@
 package mk.ukim.finki.das.cryptoinfo.controller;
 
 import jakarta.validation.constraints.NotNull;
+import lombok.RequiredArgsConstructor;
 import mk.ukim.finki.das.cryptoinfo.model.TechnicalAnalysisTimePeriod;
 import mk.ukim.finki.das.cryptoinfo.service.TechnicalAnalysisService;
 import org.springframework.http.ResponseEntity;
@@ -9,12 +10,9 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @CrossOrigin(origins="*")
 @RequestMapping("/api/ta")
+@RequiredArgsConstructor
 public class TechnicalAnalysisController {
     private final TechnicalAnalysisService technicalAnalysisService;
-
-    public TechnicalAnalysisController(TechnicalAnalysisService technicalAnalysisService) {
-        this.technicalAnalysisService = technicalAnalysisService;
-    }
 
     @GetMapping("/{symbol}")
     public ResponseEntity<Double> getDataForSymbol(

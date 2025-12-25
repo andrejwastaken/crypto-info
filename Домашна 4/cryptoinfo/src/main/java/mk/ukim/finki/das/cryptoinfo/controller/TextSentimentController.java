@@ -2,6 +2,7 @@ package mk.ukim.finki.das.cryptoinfo.controller;
 
 import java.util.List;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PagedResourcesAssembler;
@@ -19,15 +20,11 @@ import mk.ukim.finki.das.cryptoinfo.service.TextSentimentService;
 @RestController
 @CrossOrigin(origins="*")
 @RequestMapping("/api/sentiment")
+@RequiredArgsConstructor
 public class TextSentimentController {
     private final TextSentimentService textSentimentService;
-    private final PagedResourcesAssembler<TextSentiment> assembler;
-
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
-    public TextSentimentController(TextSentimentService textSentimentService, PagedResourcesAssembler<TextSentiment> assembler) {
-        this.textSentimentService = textSentimentService;
-        this.assembler = assembler;
-    }
+    private final PagedResourcesAssembler<TextSentiment> assembler;
 
     @GetMapping
     public PagedModel<EntityModel<TextSentiment>> getNewsBySymbol(

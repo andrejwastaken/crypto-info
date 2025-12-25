@@ -3,6 +3,7 @@ package mk.ukim.finki.das.cryptoinfo.model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
+import org.hibernate.annotations.Immutable;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -10,6 +11,7 @@ import java.util.List;
 @Entity
 @Table(name = "news_sentiment")
 @Getter
+@Immutable
 public class TextSentiment {
     @Id
     private Long id;
@@ -20,6 +22,7 @@ public class TextSentiment {
     private LocalDate date;
 
     @Column(columnDefinition = "text[]")
+    @SuppressWarnings("JpaAttributeTypeInspection")
     private String[] symbols;
 
     private String link;

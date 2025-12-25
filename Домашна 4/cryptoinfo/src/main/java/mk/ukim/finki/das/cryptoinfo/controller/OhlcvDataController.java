@@ -1,5 +1,6 @@
 package mk.ukim.finki.das.cryptoinfo.controller;
 
+import lombok.RequiredArgsConstructor;
 import mk.ukim.finki.das.cryptoinfo.dto.CoinStatsDTO;
 import mk.ukim.finki.das.cryptoinfo.model.OhlcvData;
 import mk.ukim.finki.das.cryptoinfo.service.OhlcvDataService;
@@ -16,15 +17,11 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @CrossOrigin(origins="*")
 @RequestMapping("/api/ohlcv-data")
+@RequiredArgsConstructor
 public class OhlcvDataController {
     private final OhlcvDataService ohlcvDataService;
-    private final PagedResourcesAssembler<OhlcvData> assembler;
-
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection") // bez ova dava error vo intellij ama raboti
-    public OhlcvDataController(OhlcvDataService ohlcvDataService, PagedResourcesAssembler<OhlcvData> assembler) {
-        this.ohlcvDataService = ohlcvDataService;
-        this.assembler = assembler;
-    }
+    private final PagedResourcesAssembler<OhlcvData> assembler;
 
     @GetMapping("/{symbol}")
     public PagedModel<EntityModel<OhlcvData>> getCoinData(

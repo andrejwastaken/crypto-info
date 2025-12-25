@@ -1,5 +1,6 @@
 package mk.ukim.finki.das.cryptoinfo.controller;
 
+import lombok.RequiredArgsConstructor;
 import mk.ukim.finki.das.cryptoinfo.model.OnChainSentimentPrediction;
 import mk.ukim.finki.das.cryptoinfo.service.OnChainSentimentPredictionService;
 import org.springframework.http.HttpEntity;
@@ -14,12 +15,9 @@ import java.util.List;
 @RestController
 @CrossOrigin(origins = "*")
 @RequestMapping("/api/chain-sentiment-prediction")
+@RequiredArgsConstructor
 public class OnChainSentimentPredictionController {
     private final OnChainSentimentPredictionService predictionService;
-
-    public OnChainSentimentPredictionController(OnChainSentimentPredictionService predictionService) {
-        this.predictionService = predictionService;
-    }
 
     @GetMapping
     public HttpEntity<List<OnChainSentimentPrediction>> getPredictions(){

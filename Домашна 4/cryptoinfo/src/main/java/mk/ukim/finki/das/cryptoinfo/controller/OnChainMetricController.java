@@ -1,5 +1,6 @@
 package mk.ukim.finki.das.cryptoinfo.controller;
 
+import lombok.RequiredArgsConstructor;
 import mk.ukim.finki.das.cryptoinfo.model.OnChainMetric;
 import mk.ukim.finki.das.cryptoinfo.service.OnChainMetricService;
 import org.springframework.http.HttpEntity;
@@ -14,12 +15,9 @@ import java.util.List;
 @RestController
 @CrossOrigin(origins = "*")
 @RequestMapping("/api/on-chain")
+@RequiredArgsConstructor
 public class OnChainMetricController {
     private final OnChainMetricService onChainMetricService;
-
-    public OnChainMetricController(OnChainMetricService onChainMetricService) {
-        this.onChainMetricService = onChainMetricService;
-    }
 
     @GetMapping
     public HttpEntity<List<OnChainMetric>> getOnChainForToday(){

@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
+import org.hibernate.annotations.Immutable;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -11,6 +12,7 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "onchain_metrics")
 @Getter
+@Immutable
 public class OnChainMetric {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)

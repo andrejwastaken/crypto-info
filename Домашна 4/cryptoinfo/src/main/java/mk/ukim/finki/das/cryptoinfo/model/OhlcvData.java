@@ -10,10 +10,12 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
+import org.hibernate.annotations.Immutable;
 
 @Entity
 @Getter
 @Table(name = "ohlcv_data")
+@Immutable
 public class OhlcvData {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
