@@ -17,8 +17,6 @@ MA_PATH = BASE_DIR / "moving-averages" / "script.py"
 HISTORY_LIMIT_DAYS = 3 * 365
 MAX_OSC_SCORE = 5
 MAX_MA_SCORE = 4
-BUY_THRESHOLD = 0.4
-SELL_THRESHOLD = -0.4
 
 
 def load_module(name: str, path: Path):
@@ -45,58 +43,57 @@ def get_engine():
     return create_engine(connection_str)
 
 
-def standardize_frame(df: pd.DataFrame, raw_col: str, prefix: str) -> pd.DataFrame:
+def standardize_columns(df: pd.DataFrame, prefix: str) -> pd.DataFrame:
     if df.empty:
         return df
-
-    rename_map: dict[str, str] = {}
+    
+    rename_map = {}
     if "date" in df.columns:
         rename_map["date"] = "Date"
-    if "Date" in df.columns:
-        rename_map["Date"] = "Date"
     if "symbol" in df.columns:
         rename_map["symbol"] = "Symbol"
-
-    if raw_col in df.columns:
-        rename_map[raw_col] = "raw_score"
-
+    
     df = df.rename(columns=rename_map)
-    df = df.rename(columns={c: f"{prefix}{c}" for c in df.columns if c not in ["Date", "Symbol"]})
+    
+    # add prefix to all columns except Date and Symbol
+    df = df.rename(columns={
+        c: f"{prefix}{c}" 
+        for c in df.columns 
+        if c not in ["Date", "Symbol"]
+    })
+    
     return df
 
 
-def compute_target(score: float) -> str:
-    if score >= BUY_THRESHOLD:
-        return "BUY"
-    if score <= SELL_THRESHOLD:
-        return "SELL"
-    return "HOLD"
-
-
-def normalize_scores(df: pd.DataFrame, volume_boost: float, volume_dampen: float) -> pd.DataFrame:
+def calculate_normalized_score(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
-
+    
     df = df.copy()
-    df["raw_score_osc"] = df.get("osc_raw_score", 0).fillna(0)
-    df["raw_score_ma"] = df.get("ma_raw_score", 0).fillna(0)
-
-    df["volume_multiplier"] = df.get("ma_volume_multiplier_hint", 1.0).fillna(1.0)
-    df.loc[df["volume_multiplier"] <= 0, "volume_multiplier"] = 1.0
-
-    max_possible = (MAX_OSC_SCORE + MAX_MA_SCORE) * df["volume_multiplier"]
-    df["combined_raw_score"] = df["raw_score_osc"] + df["raw_score_ma"]
-
-    df["normalized_score"] = df["combined_raw_score"] / max_possible.replace(0, np.nan)
-    df["normalized_score"] = df["normalized_score"].clip(-1, 1).fillna(0).round(3)
-    df["target"] = df["normalized_score"].apply(compute_target)
-
+    
+    # get raw scores, defaulting to 0 if missing
+    raw_osc = df.get("osc_raw_score_osc", 0).fillna(0)
+    raw_ma = df.get("ma_raw_score_ma", 0).fillna(0)
+    
+    # get volume multiplier, defaulting to 1.0
+    volume_mult = df.get("ma_volume_multiplier", 1.0).fillna(1.0)
+    volume_mult = volume_mult.replace(0, 1.0)  # Avoid division by zero
+    
+    combined_raw = raw_osc + raw_ma
+    
+    max_possible = (MAX_OSC_SCORE + MAX_MA_SCORE) * volume_mult
+    
+    normalized = combined_raw / max_possible.replace(0, np.nan)
+    normalized = normalized.clip(-1, 1).fillna(0).round(3)
+    
+    df["normalized_score"] = normalized
+    
     return df
 
 
 def fetch_ohlcv() -> pd.DataFrame:
     engine = get_engine()
-
+    
     query = f"""
     SELECT symbol, date, open, high, low, close, volume
     FROM ohlcv_data
@@ -104,11 +101,12 @@ def fetch_ohlcv() -> pd.DataFrame:
       AND date >= CURRENT_DATE - INTERVAL '{HISTORY_LIMIT_DAYS} days'
     ORDER BY symbol, date ASC
     """
-
+    
     df = pd.read_sql(query, engine)
     df["date"] = pd.to_datetime(df["date"])
     df = df.drop_duplicates(subset=["symbol", "date"], keep="last")
     df = df.sort_values(["symbol", "date"])
+    
     return df
 
 
@@ -118,33 +116,32 @@ def build_frames() -> dict[str, pd.DataFrame]:
 
     raw_df = fetch_ohlcv()
 
-    osc_df = raw_df.copy()
-    osc_df = osc_df.set_index("date")
+    osc_df = raw_df.copy().set_index("date")
 
-    ma_df = raw_df.rename(
-        columns={
-            "symbol": "Symbol",
-            "date": "Date",
-            "open": "Open",
-            "high": "High",
-            "low": "Low",
-            "close": "Close",
-            "volume": "Volume",
-        }
-    )
-    ma_df = ma_df.set_index("Date")
+    ma_df = raw_df.rename(columns={
+        "symbol": "Symbol",
+        "date": "Date",
+        "open": "Open",
+        "high": "High",
+        "low": "Low",
+        "close": "Close",
+        "volume": "Volume",
+    }).set_index("Date")
 
     osc_frames = osc_module.compute_oscillator_frames(osc_df)
     ma_frames = ma_module.compute_moving_average_frames(ma_df)
 
-    merged_frames: dict[str, pd.DataFrame] = {}
+    # merge and normalize for each timeframe
+    merged_frames = {}
     for tf in ["1d", "1w", "1m"]:
-        osc_tf = standardize_frame(osc_frames.get(tf, pd.DataFrame()), "raw_score_osc", "osc_")
-        ma_tf = standardize_frame(ma_frames.get(tf, pd.DataFrame()), "raw_score_ma", "ma_")
-
+        osc_tf = standardize_columns(osc_frames.get(tf, pd.DataFrame()), "osc_")
+        ma_tf = standardize_columns(ma_frames.get(tf, pd.DataFrame()), "ma_")
+        
         merged = pd.merge(osc_tf, ma_tf, on=["Date", "Symbol"], how="outer")
-        merged = normalize_scores(merged, ma_module.VOLUME_BOOST, ma_module.VOLUME_DAMPEN)
+        
+        merged = calculate_normalized_score(merged)
         merged = merged.sort_values(["Symbol", "Date"])
+        
         merged_frames[tf] = merged
 
     return merged_frames
@@ -152,28 +149,46 @@ def build_frames() -> dict[str, pd.DataFrame]:
 
 def save_outputs(frames: dict[str, pd.DataFrame]):
     engine = get_engine()
-    table_names = {"1d": "technical_analysis_1d", "1w": "technical_analysis_1w", "1m": "technical_analysis_1m"}
+    
+    period_map = {"1d": "DAY", "1w": "WEEK", "1m": "MONTH"}
+    
+    all_frames = []
     for tf, df in frames.items():
         if df.empty:
+            print(f"Skipping {tf}: No data to save")
             continue
-        df = df[df.isna().sum(axis=1) < 7]
-        cols = ["Date", "Symbol", "normalized_score", "target"]
-        missing = [c for c in cols if c not in df.columns]
-        if missing:
-            # skip saving if required columns are not present
-            print(f"Skipping {tf} due to missing columns: {missing}")
-            continue
-        df = df[cols].copy()
-        df["Date"] = df["Date"].dt.date
+        
+        df = df.copy()
+        df["Date"] = pd.to_datetime(df["Date"]).dt.date
+        
+        df["period"] = period_map[tf]
+        
         df.columns = [c.lower() for c in df.columns]
-        df.insert(0, "id", range(1, len(df) + 1))
-        table_name = table_names[tf]
-        df.to_sql(table_name, engine, if_exists="replace", index=False, chunksize=10000)
-        print(f"Saved {len(df)} rows to table '{table_name}'")
+        
+        all_frames.append(df)
+    
+    if not all_frames:
+        print("No data to save.")
+        return
+    
+    combined_df = pd.concat(all_frames, ignore_index=True)
+    combined_df.drop(columns=['osc_raw_score_osc', 'ma_raw_score_ma', 'ma_volume_multiplier'], 
+                     inplace=True, errors='ignore')
+    combined_df.insert(0, "id", range(1, len(combined_df) + 1))
+    
+    combined_df.to_sql("technical_analysis", engine, if_exists="replace", index=False, chunksize=10000)
+    
+    print(f"Saved {len(combined_df)} rows with {len(combined_df.columns)} columns to 'technical_analysis'")
+    print(f"  - DAY: {len(combined_df[combined_df['period'] == 'DAY'])} rows")
+    print(f"  - WEEK: {len(combined_df[combined_df['period'] == 'WEEK'])} rows")
+    print(f"  - MONTH: {len(combined_df[combined_df['period'] == 'MONTH'])} rows")
 
 
 def main():
+    print("Building technical analysis frames...")
     frames = build_frames()
+    
+    print("\nSaving to database...")
     save_outputs(frames)
 
 

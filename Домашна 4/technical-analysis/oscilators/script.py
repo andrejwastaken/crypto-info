@@ -4,13 +4,11 @@ from tqdm import tqdm
 
 
 HISTORY_LIMIT_DAYS = 3 * 365
-
-
-def force_unique_columns(df: pd.DataFrame) -> pd.DataFrame:
-    return df.loc[:, ~df.columns.duplicated()]
+METRIC_COLUMNS = ["RSI", "MACD_12_26_9", "MACDs_12_26_9", "STOCHk_14_3_3", "STOCHd_14_3_3", "DMP_14", "DMN_14", "ADX_14", "CCI"]
 
 
 def resample_data(df: pd.DataFrame, timeframe: str) -> pd.DataFrame:
+    """resample OHLCV data to a different timeframe."""
     agg_dict = {
         "open": "first",
         "high": "max",
@@ -26,125 +24,142 @@ def resample_data(df: pd.DataFrame, timeframe: str) -> pd.DataFrame:
 
 
 def compute_raw_score(row: pd.Series) -> int:
+    """calculate raw oscillator score based on technical indicator thresholds."""
     score = 0
-    try:
-        if row.get("RSI") is not None:
-            if row["RSI"] < 30:
-                score += 1
-            elif row["RSI"] > 70:
-                score -= 1
-    except Exception:
-        pass
-
-    try:
-        k = row.get("STOCHk_14_3_3", 50)
-        if k < 20:
+    
+    # RSI: oversold (<30) = bullish, overbought (>70) = bearish
+    if pd.notna(row.get("RSI")):
+        if row["RSI"] < 30:
             score += 1
-        elif k > 80:
+        elif row["RSI"] > 70:
             score -= 1
-    except Exception:
-        pass
-
-    try:
-        c = row.get("CCI")
-        if c is not None:
-            if c < -100:
-                score += 1
-            elif c > 100:
-                score -= 1
-    except Exception:
-        pass
-
-    try:
-        if row.get("MACD_12_26_9") is not None and row.get("MACDs_12_26_9") is not None:
-            if row["MACD_12_26_9"] > row["MACDs_12_26_9"]:
-                score += 1
-            else:
-                score -= 1
-    except Exception:
-        pass
-
-    try:
-        if row.get("DMP_14") is not None and row.get("DMN_14") is not None:
-            if row["DMP_14"] > row["DMN_14"]:
-                score += 1
-            else:
-                score -= 1
-    except Exception:
-        pass
-
+    
+    # stochastic: oversold (<20) = bullish, overbought (>80) = bearish
+    stoch_k = row.get("STOCHk_14_3_3")
+    if pd.notna(stoch_k):
+        if stoch_k < 20:
+            score += 1
+        elif stoch_k > 80:
+            score -= 1
+    
+    # CCI: oversold (<-100) = bullish, overbought (>100) = bearish
+    cci = row.get("CCI")
+    if pd.notna(cci):
+        if cci < -100:
+            score += 1
+        elif cci > 100:
+            score -= 1
+    
+    # MACD: MACD above signal = bullish, below = bearish
+    macd = row.get("MACD_12_26_9")
+    macd_signal = row.get("MACDs_12_26_9")
+    if pd.notna(macd) and pd.notna(macd_signal):
+        score += 1 if macd > macd_signal else -1
+    
+    # DMI: DI+ above DI- = bullish, below = bearish
+    dmp = row.get("DMP_14")
+    dmn = row.get("DMN_14")
+    if pd.notna(dmp) and pd.notna(dmn):
+        score += 1 if dmp > dmn else -1
+    
     return score
 
 
-def process_indicators(df: pd.DataFrame) -> pd.DataFrame:
+def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
+    """Calculate all oscillator indicators and raw score."""
     df = df.loc[:, ~df.columns.duplicated()]
     if not df.index.is_unique:
         df = df[~df.index.duplicated(keep="last")]
     if len(df) < 30:
-        return df
-
+        return pd.DataFrame()
+    
     try:
+        # calculate indicators
         df["RSI"] = df.ta.rsi(length=14)
+        
         macd = df.ta.macd(fast=12, slow=26, signal=9)
         if macd is not None:
             df = pd.concat([df, macd], axis=1)
+        
         stoch = df.ta.stoch(k=14, d=3, smooth_k=3)
         if stoch is not None:
             df = pd.concat([df, stoch], axis=1)
+        
         adx = df.ta.adx(length=14)
         if adx is not None:
             df = pd.concat([df, adx], axis=1)
+        
         df["CCI"] = df.ta.cci(length=20)
+        
+        # calculate raw score
         df["raw_score_osc"] = df.apply(compute_raw_score, axis=1)
-        df = df[["raw_score_osc"]]
+        
+        # keep only relevant columns
+        columns_to_keep = [col for col in METRIC_COLUMNS if col in df.columns] + ["raw_score_osc"]
+        df = df[columns_to_keep]
+        
     except Exception:
-        pass
+        return pd.DataFrame()
+    
+    return df.loc[:, ~df.columns.duplicated()]
 
-    return force_unique_columns(df)
+
+def process_timeframe(coin_df: pd.DataFrame, symbol: str, timeframe: str = None) -> pd.DataFrame:
+    """process a single coin for a specific timeframe."""
+    try:
+        if timeframe:
+            coin_df = resample_data(coin_df, timeframe)
+            if coin_df.empty:
+                return pd.DataFrame()
+        
+        processed = compute_indicators(coin_df)
+        if processed.empty:
+            return pd.DataFrame()
+        
+        processed["symbol"] = symbol
+        processed = processed.reset_index().rename(columns={"index": "date"})
+        processed = processed.sort_values("date")
+        
+        # Return only the latest row
+        return processed.tail(1)
+    except Exception:
+        return pd.DataFrame()
 
 
 def compute_oscillator_frames(df: pd.DataFrame) -> dict:
+    """
+    compute oscillator indicators for all coins across multiple timeframes.
+    """
     results = {"1d": [], "1w": [], "1m": []}
     unique_symbols = df["symbol"].unique()
 
-    for symbol in tqdm(unique_symbols):
-        try:
-            coin_df = df[df["symbol"] == symbol].copy().sort_index()
+    for symbol in tqdm(unique_symbols, desc="Oscillators"):
+        coin_df = df[df["symbol"] == symbol].copy().sort_index()
+        
+        # Daily
+        daily_result = process_timeframe(coin_df.copy(), symbol)
+        if not daily_result.empty:
+            results["1d"].append(daily_result)
+        
+        # Weekly
+        weekly_result = process_timeframe(coin_df.copy(), symbol, "W")
+        if not weekly_result.empty:
+            results["1w"].append(weekly_result)
+        
+        # Monthly
+        monthly_result = process_timeframe(coin_df.copy(), symbol, "ME")
+        if not monthly_result.empty:
+            results["1m"].append(monthly_result)
 
-            # Daily
-            d_df = process_indicators(coin_df.copy())
-            d_df["symbol"] = symbol
-            d_df = d_df.reset_index().rename(columns={"index": "date"})
-            d_df = d_df.sort_values("date")
-            if "raw_score_osc" in d_df.columns and not d_df.empty:
-                results["1d"].append(d_df.tail(1))
-
-            # Weekly
-            w_df = resample_data(coin_df, "W")
-            w_df = process_indicators(w_df)
-            w_df["symbol"] = symbol
-            w_df = w_df.reset_index().rename(columns={"index": "date"})
-            w_df = w_df.sort_values("date")
-            if "raw_score_osc" in w_df.columns and not w_df.empty:
-                results["1w"].append(w_df.tail(1))
-
-            # Monthly
-            m_df = resample_data(coin_df, "ME")
-            m_df = process_indicators(m_df)
-            m_df["symbol"] = symbol
-            m_df = m_df.reset_index().rename(columns={"index": "date"})
-            m_df = m_df.sort_values("date")
-            if "raw_score_osc" in m_df.columns and not m_df.empty:
-                results["1m"].append(m_df.tail(1))
-        except Exception:
-            pass
-
-    return {tf: (pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()) for tf, frames in results.items()}
+    return {
+        tf: (pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()) 
+        for tf, frames in results.items()
+    }
 
 
 def main():
     print(
-        "This script now exposes functions. Use combine_signals.py to orchestrate DB access, scoring, and outputs."
+        "This script exposes compute_oscillator_frames(). Run combine_signals.py to execute."
     )
 
 
