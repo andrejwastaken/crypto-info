@@ -4,7 +4,18 @@ from tqdm import tqdm
 
 
 HISTORY_LIMIT_DAYS = 3 * 365
-METRIC_COLUMNS = ["RSI", "MACD_12_26_9", "MACDs_12_26_9", "STOCHk_14_3_3", "STOCHd_14_3_3", "DMP_14", "DMN_14", "ADX_14", "CCI"]
+METRIC_COLUMNS = ["RSI", "MACD_LINE", "MACD_SIGNAL", "STOCH_K", "STOCH_D", "DMI_PLUS", "DMI_MINUS", "ADX", "CCI"]
+
+# mapping from pandas_ta generated column names to readable names
+COLUMN_RENAME_MAP = {
+    "MACD_12_26_9": "MACD_LINE",
+    "MACDs_12_26_9": "MACD_SIGNAL",
+    "STOCHk_14_3_3": "STOCH_K",
+    "STOCHd_14_3_3": "STOCH_D",
+    "DMP_14": "DMI_PLUS",
+    "DMN_14": "DMI_MINUS",
+    "ADX_14": "ADX",
+}
 
 
 def resample_data(df: pd.DataFrame, timeframe: str) -> pd.DataFrame:
@@ -35,7 +46,7 @@ def compute_raw_score(row: pd.Series) -> int:
             score -= 1
     
     # stochastic: oversold (<20) = bullish, overbought (>80) = bearish
-    stoch_k = row.get("STOCHk_14_3_3")
+    stoch_k = row.get("STOCH_K")
     if pd.notna(stoch_k):
         if stoch_k < 20:
             score += 1
@@ -51,14 +62,14 @@ def compute_raw_score(row: pd.Series) -> int:
             score -= 1
     
     # MACD: MACD above signal = bullish, below = bearish
-    macd = row.get("MACD_12_26_9")
-    macd_signal = row.get("MACDs_12_26_9")
+    macd = row.get("MACD_LINE")
+    macd_signal = row.get("MACD_SIGNAL")
     if pd.notna(macd) and pd.notna(macd_signal):
         score += 1 if macd > macd_signal else -1
     
     # DMI: DI+ above DI- = bullish, below = bearish
-    dmp = row.get("DMP_14")
-    dmn = row.get("DMN_14")
+    dmp = row.get("DMI_PLUS")
+    dmn = row.get("DMI_MINUS")
     if pd.notna(dmp) and pd.notna(dmn):
         score += 1 if dmp > dmn else -1
     
@@ -90,6 +101,9 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
             df = pd.concat([df, adx], axis=1)
         
         df["CCI"] = df.ta.cci(length=20)
+        
+        # rename columns to readable names
+        df = df.rename(columns=COLUMN_RENAME_MAP)
         
         # calculate raw score
         df["raw_score_osc"] = df.apply(compute_raw_score, axis=1)
