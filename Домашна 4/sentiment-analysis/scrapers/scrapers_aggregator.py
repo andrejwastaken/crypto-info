@@ -13,7 +13,7 @@ def load_module(name: str, path: Path):
     
     return module
 
-def scrape_source(source_name: str, module_path: Path, scraper_func: str) -> pd.DataFrame:
+def scrape_source(source_name: str, module_path: Path, scraper_func: str, light_mode: bool = False) -> pd.DataFrame:
     if not module_path.exists():
         print(f"Warning: {module_path} not found.")
         return pd.DataFrame()
@@ -23,7 +23,11 @@ def scrape_source(source_name: str, module_path: Path, scraper_func: str) -> pd.
         print(f"\nRunning {source_name} Scraper...")
         
         scrape_function = getattr(module, scraper_func)
-        df = scrape_function()
+        try:
+            df = scrape_function(light_mode=light_mode)
+        except TypeError:
+            print(f"Warning: {source_name} scraper does not support light_mode. Running default.")
+            df = scrape_function()
         
         if not df.empty:
             print(f"Loaded {len(df)} rows from {source_name}")
@@ -37,7 +41,7 @@ def scrape_source(source_name: str, module_path: Path, scraper_func: str) -> pd.
         return pd.DataFrame()
 
 
-def scrape_all_news() -> pd.DataFrame:
+def scrape_all_news(light_mode: bool = False) -> pd.DataFrame:
     """
     scrape news from all available sources and combine into single dataframe.
     """
@@ -52,7 +56,7 @@ def scrape_all_news() -> pd.DataFrame:
     # scrape all sources
     dataframes = []
     for source_name, module_path, func_name in scrapers:
-        df = scrape_source(source_name, module_path, func_name)
+        df = scrape_source(source_name, module_path, func_name, light_mode=light_mode)
         if not df.empty:
             dataframes.append(df)
     

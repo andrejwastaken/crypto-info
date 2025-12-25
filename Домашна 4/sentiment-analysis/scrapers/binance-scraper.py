@@ -134,7 +134,7 @@ def parse_article_element(article_element, category: str) -> dict:
     )
 
 
-def scrape_category(category: str) -> List[dict]:
+def scrape_category(category: str, light_mode: bool = False) -> List[dict]:
     driver = init_driver()
     
     try:
@@ -144,7 +144,8 @@ def scrape_category(category: str) -> List[dict]:
         driver.get(url)
         time.sleep(3)  # wait for initial page load
         
-        scroll_page(driver, num_scrolls=3)
+        if not light_mode:
+            scroll_page(driver, num_scrolls=3)
         
         soup = BeautifulSoup(driver.page_source, 'html.parser')
         valid_articles = filter_valid_articles(soup)
@@ -169,7 +170,7 @@ def scrape_category(category: str) -> List[dict]:
         driver.quit()
 
 
-def scrape_binance_news() -> pd.DataFrame:
+def scrape_binance_news(light_mode: bool = False) -> pd.DataFrame:
     """
     scrape cryptocurrency news from all binance categories.
     """
@@ -177,7 +178,8 @@ def scrape_binance_news() -> pd.DataFrame:
 
     max_workers = 4 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        results = executor.map(scrape_category, CATEGORIES)
+        func = lambda cat: scrape_category(cat, light_mode=light_mode)
+        results = executor.map(func, CATEGORIES)
         for res in results:
             all_data.extend(res)
 
