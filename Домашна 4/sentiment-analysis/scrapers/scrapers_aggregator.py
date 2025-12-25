@@ -1,71 +1,86 @@
 import importlib.util
-import os
 from pathlib import Path
 import pandas as pd
 
 def load_module(name: str, path: Path):
+    """dynamically load a python module from file path."""
     spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
         raise ImportError(f"Cannot load module {name} from {path}")
+    
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    
     return module
 
-def scrape_all_news():
-    """Scrape news from all sources and return combined dataframe"""
-    base_dir = Path(__file__).parent
-    binance_path = base_dir / "binance-scraper.py"
-    yfinance_path = base_dir / "yfinance-scraper.py"
-
-    dfs = []
-
-    # binance
-    if binance_path.exists():
-        try:
-            binance_module = load_module("binance_scraper", binance_path)
-            print("Running Binance Scraper...")
-            df_binance = binance_module.scrape_binance_news()
-            if not df_binance.empty:
-                dfs.append(df_binance)
-                print(f"Loaded {len(df_binance)} rows from Binance")
-        except Exception as e:
-            print(f"Error running Binance scraper: {e}")
-    else:
-        print(f"Warning: {binance_path} not found.")
-
-    # yfinance
-    if yfinance_path.exists():
-        try:
-            yfinance_module = load_module("yfinance_scraper", yfinance_path)
-            print("Running YFinance Scraper...")
-            df_yfinance = yfinance_module.scrape_yfinance_news()
-            if not df_yfinance.empty:
-                dfs.append(df_yfinance)
-                print(f"Loaded {len(df_yfinance)} rows from YFinance")
-        except Exception as e:
-            print(f"Error running YFinance scraper: {e}")
-    else:
-        print(f"Warning: {yfinance_path} not found.")
-
-    if dfs:
-        combined_df = pd.concat(dfs, ignore_index=True)
+def scrape_source(source_name: str, module_path: Path, scraper_func: str) -> pd.DataFrame:
+    if not module_path.exists():
+        print(f"Warning: {module_path} not found.")
+        return pd.DataFrame()
+    
+    try:
+        module = load_module(f"{source_name.lower()}_scraper", module_path)
+        print(f"\nRunning {source_name} Scraper...")
         
-        # ensure date column is consistent
-        if 'date' in combined_df.columns:
-            combined_df['date'] = pd.to_datetime(combined_df['date'], errors='coerce')
-            # sort by date descending
-            combined_df = combined_df.sort_values(by='date', ascending=False)
-
-        print(f"\nSuccessfully combined {len(combined_df)} rows from all sources")
-        return combined_df
-    else:
-        print("\nNo data collected from any scraper.")
+        scrape_function = getattr(module, scraper_func)
+        df = scrape_function()
+        
+        if not df.empty:
+            print(f"Loaded {len(df)} rows from {source_name}")
+            return df
+        else:
+            print(f"No data returned from {source_name}")
+            return pd.DataFrame()
+            
+    except Exception as e:
+        print(f"Error running {source_name} scraper: {e}")
         return pd.DataFrame()
 
-if __name__ == "__main__":
-    # If run directly, still save to CSV for testing
+
+def scrape_all_news() -> pd.DataFrame:
+    """
+    scrape news from all available sources and combine into single dataframe.
+    """
+    base_dir = Path(__file__).parent
+    
+    # define scrapers
+    scrapers = [
+        ("Binance", base_dir / "binance-scraper.py", "scrape_binance_news"),
+        ("YFinance", base_dir / "yfinance-scraper.py", "scrape_yfinance_news"),
+    ]
+    
+    # scrape all sources
+    dataframes = []
+    for source_name, module_path, func_name in scrapers:
+        df = scrape_source(source_name, module_path, func_name)
+        if not df.empty:
+            dataframes.append(df)
+    
+    # combine results
+    if not dataframes:
+        print("\nNo data collected from any scraper.")
+        return pd.DataFrame()
+    
+    combined_df = pd.concat(dataframes, ignore_index=True)
+    
+    # standardize date column
+    if 'date' in combined_df.columns:
+        combined_df['date'] = pd.to_datetime(combined_df['date'], errors='coerce')
+        combined_df = combined_df.sort_values(by='date', ascending=False)
+    
+    print(f"\nSuccessfully combined {len(combined_df)} rows from all sources")
+    return combined_df
+
+def main():
+    # run this for testing purposes
     df = scrape_all_news()
     if not df.empty:
         output_file = "news.csv"
         df.to_csv(output_file, index=False)
-        print(f"Saved to {output_file}")
+        print(f"\nSaved to {output_file}")
+    else:
+        print("\nNo data to save.")
+
+
+if __name__ == "__main__":
+    main()

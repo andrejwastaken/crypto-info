@@ -1,25 +1,15 @@
 import sys
 from typing import List, Optional
-from urllib.parse import urljoin
-import dateparser
-from datetime import datetime
 
+import pandas as pd
 import requests
 from bs4 import BeautifulSoup, Tag
-import pandas as pd
+
+from scraper_utils import parse_relative_time, normalize_url, build_article_dict
 
 
 BASE_URL = "https://finance.yahoo.com"
 TARGET_PATH = "/topic/crypto/"
-CSV_PATH = "yfinance-news.csv"
-
-
-def parse_relative_time(time_str: str) -> datetime:
-	if not time_str:
-		return datetime.now()
-	time_str = time_str.strip()
-	dt = dateparser.parse(time_str)
-	return dt if dt else datetime.now()
 
 
 def fetch_html(url: str) -> str:
@@ -34,14 +24,10 @@ def fetch_html(url: str) -> str:
 	return resp.text
 
 
-def extract_first_anchor(li: Tag) -> Optional[Tag]:
-	return li.find("a")
-
-
-def extract_taxonomy_tickers(li: Tag) -> List[str]:
-	"""get ticker names"""
-	tickers: List[str] = []
+def extract_tickers(li: Tag) -> List[str]:
+	tickers = []
 	taxonomy = li.find("div", class_="taxonomy-links")
+	
 	if not taxonomy:
 		return tickers
 
@@ -49,73 +35,81 @@ def extract_taxonomy_tickers(li: Tag) -> List[str]:
 		name_div = span.find("div", class_="name")
 		if not name_div:
 			continue
+		
 		name_span = name_div.find("span")
 		if name_span and name_span.text:
 			tickers.append(name_span.text.strip())
+	
 	return tickers
 
 
-def scrape_items(html: str) -> List[dict]:
+def parse_article_element(li: Tag) -> Optional[dict]:
+	anchor = li.find("a")
+	if not anchor:
+		return None
+
+	# extract basic info
+	href = anchor.get("href")
+	title = anchor.get("title")
+	
+	# extract image
+	img = anchor.find("img")
+	img_src = img.get("src") if img else None
+
+	# normalize URLs
+	href = normalize_url(href, BASE_URL)
+	img_src = normalize_url(img_src, BASE_URL) if img_src else None
+
+	# extract symbols
+	symbols = extract_tickers(li)
+
+	# extract publication date
+	published_at = None
+	publishing_div = li.find("div", class_="publishing")
+	if publishing_div:
+		time_element = publishing_div.find("i")
+		if time_element:
+			published_at = parse_relative_time(time_element.get_text())
+
+	return build_article_dict(
+		title=title or "No Title",
+		link=href,
+		date=published_at,
+		symbols=symbols,
+		img_src=img_src
+	)
+
+
+def scrape_articles(html: str) -> List[dict]:
 	soup = BeautifulSoup(html, "html.parser")
-	items: List[dict] = []
+	articles = []
 
 	for li in soup.find_all("li", class_=["stream-item", "story-item"]):
-		anchor = extract_first_anchor(li)
-		if not anchor:
-			continue
+		article = parse_article_element(li)
+		if article:
+			articles.append(article)
 
-		href = anchor.get("href")
-		title = anchor.get("title")
-		img_src = None
-
-		img = anchor.find("img")
-		if img:
-			img_src = img.get("src")
-
-		# normalize relative links to absolute.
-		if href:
-			href = urljoin(BASE_URL, href)
-		if img_src:
-			img_src = urljoin(BASE_URL, img_src)
-
-		tickers = extract_taxonomy_tickers(li)
-
-		published_at = None
-		publishing_div = li.find("div", class_="publishing")
-		if publishing_div:
-			time_element = publishing_div.find("i")
-			if time_element:
-				published_at = parse_relative_time(time_element.get_text())
-
-		items.append(
-			{
-				"link": href,
-				"title": title,
-				"img_src": img_src,
-				"symbols": tickers,
-				"date": published_at,
-			}
-		)
-
-	return items
+	return articles
 
 
 def scrape_yfinance_news() -> pd.DataFrame:
-	url = urljoin(BASE_URL, TARGET_PATH)
+	"""
+	scrape cryptocurrency news from yahoo finance news.
+	"""
+	url = f"{BASE_URL}{TARGET_PATH}"
 	html = fetch_html(url)
-	data = scrape_items(html)
-
-	df = pd.DataFrame(data)
-	return df
+	articles = scrape_articles(html)
+	
+	return pd.DataFrame(articles)
 
 
 def main() -> None:
-	print("This script exposes scrape_yfinance_news(). Run scrapers-aggregator.py to execute.")
+	print("This script exposes scrape_yfinance_news(). Run scrapers_aggregator.py to execute.")
 
 
 if __name__ == "__main__":
 	try:
 		main()
-	except Exception as exc:  
+	except Exception as exc:
 		sys.stderr.write(f"Error: {exc}\n")
 		sys.exit(1)
