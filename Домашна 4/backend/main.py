@@ -4,26 +4,28 @@ from fastapi import FastAPI
 import uvicorn
 
 scrapers_path = Path(__file__).parent.parent / "sentiment-analysis" / "scrapers"
+analysis_path = Path(__file__).parent.parent / "sentiment-analysis" / "analysis"
 sys.path.append(str(scrapers_path))
+sys.path.append(str(analysis_path))
 
 try:
-    from scrapers_aggregator import scrape_all_news
+    from sentiment_analysis import run_pipeline
 except ImportError as e:
-    print(f"Error importing scrapers: {e}")
-    scrape_all_news = None
+    print(f"Error importing sentiment_analysis: {e}")
+    run_pipeline = None
 
 app = FastAPI()
 
 @app.get("/api/light-sentiment")
 async def get_news_sentiment():
-    if not scrape_all_news:
-        return {"error": "Scrapers not available"}
+    if not run_pipeline:
+        return {"error": "Sentiment analysis pipeline not available"}
     
     try:
-        df = scrape_all_news(light_mode=True)
+        df = run_pipeline(light_mode=True)
         
-        if df.empty:
-            return {"message": "No news found", "data": []}
+        if df is None or df.empty:
+            return {"message": "No news found or pipeline stopped", "data": []}
             
         # Convert dataframe to list of dicts
         # Handle datetime serialization

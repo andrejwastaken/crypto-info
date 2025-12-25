@@ -70,6 +70,9 @@ class SentimentModelSingleton:
 
 
 class DataIngestion(PipelineStep):
+    def __init__(self, light_mode: bool = False):
+        self.light_mode = light_mode
+
     def process(self, df: pd.DataFrame = None) -> pd.DataFrame:
         print("Ingesting Data...")
       
@@ -77,10 +80,13 @@ class DataIngestion(PipelineStep):
             return df
         
         try:
-            df = scrape_all_news()
+            df = scrape_all_news(light_mode=self.light_mode)
         except NameError:
             print("Scraper module not found.")
             return pd.DataFrame()
+        except TypeError:
+            print("scrape_all_news does not support light_mode. Running default.")
+            df = scrape_all_news()
 
         if df.empty:
             print("Error: No news data collected.")
@@ -295,20 +301,22 @@ class SentimentPipeline:
                 print("Pipeline stopped: Dataframe is empty.")
                 break
         print("Pipeline execution finished.")
+        return data
 
-def main():
+def run_pipeline(light_mode: bool = False):
     pipeline = SentimentPipeline()
     
-    
-    pipeline.add_step(DataIngestion())
+    pipeline.add_step(DataIngestion(light_mode=light_mode))
     pipeline.add_step(SentimentAnalysis())
     pipeline.add_step(ConfidenceFilter())
     pipeline.add_step(SimilarityFilter())
     pipeline.add_step(SymbolMapping())
     pipeline.add_step(DatabaseStorage())
     
+    return pipeline.run()
 
-    pipeline.run()
+def main():
+    run_pipeline()
 
 if __name__ == "__main__":
     main()
