@@ -1,6 +1,7 @@
 package mk.ukim.finki.das.cryptoinfo.model;
 
 import jakarta.persistence.*;
+import lombok.Getter;
 import org.hibernate.annotations.Immutable;
 
 import java.time.LocalDate;
@@ -8,6 +9,7 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "technical_analysis")
 @Immutable
+@Getter
 public class TechnicalAnalysis {
     @Id
     @Column(name = "id")
