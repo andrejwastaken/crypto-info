@@ -137,6 +137,12 @@ class LSTMPredictionStrategy(PredictionStrategy):
             logger.warning(f"Skipping {symbol}: Not enough data ({len(df)} rows).")
             return None
 
+        # filter out coins with average close price <= 1.01
+        avg_close = df['close'].mean()
+        if avg_close <= 1.01:
+            logger.info(f"Skipping {symbol}: Average close price too low ({avg_close:.4f})")
+            return None
+
         scaler = MinMaxScaler(feature_range=(-1, 1))
         scaled_data = scaler.fit_transform(df['close'].values.reshape(-1, 1))
 
