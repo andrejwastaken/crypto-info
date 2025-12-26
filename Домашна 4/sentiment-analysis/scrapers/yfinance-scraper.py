@@ -67,9 +67,12 @@ def parse_article_element(li: Tag) -> Optional[dict]:
 	published_at = None
 	publishing_div = li.find("div", class_="publishing")
 	if publishing_div:
-		time_element = publishing_div.find("i")
-		if time_element:
-			published_at = parse_relative_time(time_element.get_text())
+		# get all text from the div and split by bullet to get the time part
+		full_text = publishing_div.get_text(strip=True)
+		# the time is usually after the bullet "•"
+		if "•" in full_text:
+			time_text = full_text.split("•")[-1].strip()
+			published_at = parse_relative_time(time_text)
 
 	return build_article_dict(
 		title=title or "No Title",
@@ -111,6 +114,8 @@ def scrape_yfinance_news(light_mode: bool = False) -> pd.DataFrame:
 
 
 def main() -> None:
+	df = scrape_yfinance_news()
+	df.to_csv('test.csv')
 	print("This script exposes scrape_yfinance_news(). Run scrapers_aggregator.py to execute.")
 
 
