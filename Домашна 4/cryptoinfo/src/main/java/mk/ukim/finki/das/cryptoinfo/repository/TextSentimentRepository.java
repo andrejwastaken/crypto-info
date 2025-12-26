@@ -18,7 +18,7 @@ public interface TextSentimentRepository extends JpaRepository<TextSentiment, Lo
             WHEN CAST(:symbol AS text) = ANY(symbols) THEN 0
             ELSE 1
         END,
-        id 
+        date desc 
     """,
             nativeQuery = true)
     Page<TextSentiment> findTopBySymbolPriority(@Param("symbol") String symbol, Pageable pageable);
