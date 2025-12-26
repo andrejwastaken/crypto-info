@@ -56,7 +56,7 @@ class Filter2(Filter):
             df['updated_at'] = None
         
         # import database utility here to avoid circular imports
-        from database import check_and_update_metadata
+        from database_utils import check_and_update_metadata
         df = check_and_update_metadata(df)
         
         # only fetch data for coins NOT in database

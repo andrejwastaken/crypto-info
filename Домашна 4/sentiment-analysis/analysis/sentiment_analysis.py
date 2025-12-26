@@ -15,7 +15,9 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import psycopg2
 from psycopg2 import extras
-
+from sqlalchemy import text
+sys.path.append(str(Path(__file__).parent.parent.parent))
+from database.database import DatabaseManager
 
 sys.path.append(str(Path(__file__).parent.parent / "scrapers"))
 try:
@@ -23,16 +25,13 @@ try:
 except ImportError:
     pass 
 
+
 load_dotenv()
 
-# TODO: Extract to singleton
+
 
 class Config:
-    DB_HOST = os.getenv("DB_HOST", "localhost")
-    DB_NAME = os.getenv("DB_NAME", "crypto_db")
-    DB_USER = os.getenv("DB_USER", "postgres")
-    DB_PASSWORD = os.getenv("DB_PASSWORD", "password")
-    DB_PORT = os.getenv("DB_PORT", "5432")
+
 
     CONFIDENCE_THRESHOLD = 0.7 
     SIMILARITY_THRESHOLD = 0.85
@@ -130,7 +129,7 @@ class ConfidenceFilter(PipelineStep):
 class SimilarityFilter(PipelineStep):
     def process(self, df: pd.DataFrame) -> pd.DataFrame:
         if df.empty: return df
-        print("Filtering Duplicates (Cosine Similarity)...")
+        print("Filtering Duplicates...")
         
         df = df.reset_index(drop=True)
         vectorizer = TfidfVectorizer(stop_words='english')
@@ -156,15 +155,10 @@ class SymbolMapping(PipelineStep):
         
        
         try:
-            conn = psycopg2.connect(
-                host=Config.DB_HOST, database=Config.DB_NAME,
-                user=Config.DB_USER, password=Config.DB_PASSWORD, port=Config.DB_PORT
-            )
-            cursor = conn.cursor()
-            cursor.execute("SELECT DISTINCT symbol FROM ohlcv_data;")
-            db_symbols = set([row[0] for row in cursor.fetchall()])
-            cursor.close()
-            conn.close()
+            engine = DatabaseManager.get_engine()
+            with engine.connect() as conn:
+                result = conn.execute(text("SELECT DISTINCT symbol FROM ohlcv_data;"))
+                db_symbols = set([row[0] for row in result])
         except Exception as e:
             print(f"DB Connection failed: {e}")
             return df 
@@ -225,13 +219,10 @@ class DatabaseStorage(PipelineStep):
         print("Storing to Database...")
         
         try:
-            conn = psycopg2.connect(
-                host=Config.DB_HOST, database=Config.DB_NAME,
-                user=Config.DB_USER, password=Config.DB_PASSWORD, port=Config.DB_PORT
-            )
-            cursor = conn.cursor()
             
-            cursor.execute("""
+            engine=DatabaseManager.get_engine()
+            
+            create_table_sql="""
             CREATE TABLE IF NOT EXISTS news_sentiment (
                 id SERIAL PRIMARY KEY,
                 title TEXT NOT NULL UNIQUE,
@@ -242,15 +233,17 @@ class DatabaseStorage(PipelineStep):
                 sentiment_label VARCHAR(20),
                 sentiment_score FLOAT
             );
-            """)
-            conn.commit()
-            
-            
-            try:
-                cursor.execute("ALTER TABLE news_sentiment ADD CONSTRAINT news_sentiment_title_key UNIQUE (title);")
+            """
+            with engine.connect() as conn:
+                conn.execute(text(create_table_sql))
                 conn.commit()
-            except Exception:
-                conn.rollback() # Constraint likely exists or duplicates prevent it
+                
+                
+                try:
+                    conn.execute(text("ALTER TABLE news_sentiment ADD CONSTRAINT news_sentiment_title_key UNIQUE (title);"))
+                    conn.commit()
+                except Exception:
+                    pass 
 
             # Prepare data
             def format_sym(x):
@@ -269,18 +262,23 @@ class DatabaseStorage(PipelineStep):
                     float(row['sentiment_score'])
                 ))
 
-            insert_query = """
-            INSERT INTO news_sentiment (title, symbols, date, link, img_src, sentiment_label, sentiment_score)
-            VALUES %s ON CONFLICT (title) DO NOTHING
-            """
-            extras.execute_values(cursor, insert_query, data_to_insert)
-            conn.commit()
-            print(f"Stored {len(data_to_insert)} articles.")
-            
+            raw_conn = engine.raw_connection()
+            try:
+                cursor = raw_conn.cursor()
+                insert_query = """
+                INSERT INTO news_sentiment (title, symbols, date, link, img_src, sentiment_label, sentiment_score)
+                VALUES %s
+                ON CONFLICT (title) DO NOTHING
+                """
+
+             
+                extras.execute_values(cursor, insert_query, data_to_insert, page_size=500)
+                raw_conn.commit()
+                print(f"Stored {len(data_to_insert)} articles.")
+            finally:
+                raw_conn.close()
         except Exception as e:
             print(f"Storage failed: {e}")
-        finally:
-            if 'conn' in locals(): conn.close()
             
         return df
 
@@ -298,7 +296,7 @@ class SentimentPipeline:
         for step in self.steps:
             data = step.process(data)
             if data is not None and data.empty and not isinstance(step, DataIngestion):
-                print("Pipeline stopped: Dataframe is empty.")
+                print("Dataframe is empty.")
                 break
         print("Pipeline execution finished.")
         return data

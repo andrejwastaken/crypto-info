@@ -1,5 +1,6 @@
 import importlib.util
 import os
+import sys
 from pathlib import Path
 from urllib.parse import quote_plus
 
@@ -9,6 +10,13 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 
 load_dotenv()
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from database.database import DatabaseManager
+
 
 BASE_DIR = Path(__file__).parent
 OSC_PATH = BASE_DIR / "oscilators" / "script.py"
@@ -27,20 +35,6 @@ def load_module(name: str, path: Path):
     spec.loader.exec_module(module)
     return module
 
-
-def get_engine():
-    db_user = os.getenv("DB_USER")
-    db_password = os.getenv("DB_PASSWORD")
-    db_host = os.getenv("DB_HOST")
-    db_port = os.getenv("DB_PORT")
-    db_name = os.getenv("DB_NAME")
-
-    if not all([db_user, db_host, db_port, db_name]):
-        raise RuntimeError("Database credentials are missing in environment variables")
-
-    encoded_password = quote_plus(db_password)
-    connection_str = f"postgresql://{db_user}:{encoded_password}@{db_host}:{db_port}/{db_name}"
-    return create_engine(connection_str)
 
 
 def standardize_columns(df: pd.DataFrame, prefix: str) -> pd.DataFrame:
@@ -92,13 +86,13 @@ def calculate_normalized_score(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def fetch_ohlcv() -> pd.DataFrame:
-    engine = get_engine()
+    engine = DatabaseManager.get_engine()
     
     query = f"""
     SELECT symbol, date, open, high, low, close, volume
     FROM ohlcv_data
     WHERE symbol IN (SELECT symbol FROM coins_metadata)
-      AND date >= CURRENT_DATE - INTERVAL '{HISTORY_LIMIT_DAYS} days'
+      AND date::date >= CURRENT_DATE - INTERVAL '{HISTORY_LIMIT_DAYS} days'
     ORDER BY symbol, date ASC
     """
     
@@ -148,7 +142,7 @@ def build_frames() -> dict[str, pd.DataFrame]:
 
 
 def save_outputs(frames: dict[str, pd.DataFrame]):
-    engine = get_engine()
+    engine = DatabaseManager.get_engine()
     
     period_map = {"1d": "DAY", "1w": "WEEK", "1m": "MONTH"}
     

@@ -24,7 +24,7 @@ class Filter4(Filter):
         start_time = time.time()
         
         # import database utilities here to avoid circular imports
-        from database import save_df_to_db, save_csv_to_db
+        from database_utils import save_df_to_db, save_csv_to_db
         
         save_df_to_db(df, "coins_metadata")
         

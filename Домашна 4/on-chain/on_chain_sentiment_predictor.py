@@ -1,13 +1,14 @@
 import os
+import sys
 import ast
 import logging
 from abc import ABC, abstractmethod
 from typing import List, Optional
 from urllib.parse import quote_plus
-
+from pathlib import Path
 import pandas as pd
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, text, Engine
+from sqlalchemy import text
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import cross_val_score, TimeSeriesSplit
@@ -17,27 +18,16 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+
+from database.database import DatabaseManager
+
 class Config:
-    DB_USER = os.getenv("DB_USER")
-    DB_PASSWORD = os.getenv("DB_PASSWORD")
-    DB_HOST = os.getenv("DB_HOST")
-    DB_PORT = os.getenv("DB_PORT")
-    DB_NAME = os.getenv("DB_NAME")
     PREDICTION_TABLE = 'on_chain_sentiment_predictions'
 
-class DatabaseManager:
-    _engine: Optional[Engine] = None
-
-    @classmethod
-    def get_engine(cls) -> Engine:
-        if cls._engine is not None:
-            return cls._engine
-        if not all([Config.DB_USER, Config.DB_HOST, Config.DB_PORT, Config.DB_NAME]):
-            raise RuntimeError("Database credentials are missing.")
-        encoded_password = quote_plus(Config.DB_PASSWORD)
-        connection_str = f"postgresql://{Config.DB_USER}:{encoded_password}@{Config.DB_HOST}:{Config.DB_PORT}/{Config.DB_NAME}"
-        cls._engine = create_engine(connection_str, pool_size=10, max_overflow=20)
-        return cls._engine
 
 class DataRepository:
     def __init__(self):
@@ -157,7 +147,7 @@ class PredictionService:
             logger.warning("Not enough data to train.")
             return
 
-        exclude = {'id', 'symbol', 'date', 'target_next_close'}
+        exclude = {'id', 'symbol', 'date', 'target_next_close', 'security_metric'}
         features = [c for c in df.columns if c not in exclude]
 
         result_df = self.strategy.train_and_predict(train_df, latest_df, features)

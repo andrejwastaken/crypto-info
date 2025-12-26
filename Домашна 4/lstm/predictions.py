@@ -10,10 +10,12 @@ from typing import Tuple, List, Optional
 from abc import ABC, abstractmethod
 from torch.utils.data import DataLoader, TensorDataset
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, text, Engine
+from sqlalchemy import text
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import r2_score
 import warnings
+import sys
+from pathlib import Path
 
 warnings.filterwarnings("ignore")
 
@@ -22,14 +24,17 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+
+from database.database import DatabaseManager
+
+
 class Config:
-    DB_USER = os.getenv("DB_USER")
-    DB_PASSWORD = os.getenv("DB_PASSWORD")
-    DB_HOST = os.getenv("DB_HOST")
-    DB_PORT = os.getenv("DB_PORT")
-    DB_NAME = os.getenv("DB_NAME")
+   
     TABLE_NAME = 'ohlcv_predictions'
-    
     # LSTM Hyperparameters
     HISTORY_LIMIT_DAYS = 4 * 365
     LOOKBACK_DAYS = 30
@@ -45,19 +50,7 @@ class Config:
         if torch.cuda.is_available(): return torch.device("cuda")
         return torch.device("cpu")
 
-class DatabaseManager:
-    _engine: Optional[Engine] = None
 
-    @classmethod
-    def get_engine(cls) -> Engine:
-        if cls._engine is not None: return cls._engine
-        if not all([Config.DB_USER, Config.DB_HOST, Config.DB_PORT, Config.DB_NAME]):
-            raise RuntimeError("Database credentials are missing.")
-        
-        encoded_pass = quote_plus(Config.DB_PASSWORD)
-        conn_str = f"postgresql://{Config.DB_USER}:{encoded_pass}@{Config.DB_HOST}:{Config.DB_PORT}/{Config.DB_NAME}"
-        cls._engine = create_engine(conn_str, pool_size=10, max_overflow=20)
-        return cls._engine
 
 class DataRepository:
     def __init__(self):

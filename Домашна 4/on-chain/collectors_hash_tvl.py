@@ -161,7 +161,7 @@ class HashRateStrategy(MetricStrategy):
             if not data.empty:
                 data.rename(columns={'HashRate': 'security_value'}, inplace=True)
                 data['metric_name'] = 'Hashrate (TH/s)'
-                # Convert to Terahashes as per original script
+               
                 data['security_value'] = data['security_value'].astype(float) / 1_000_000_000_000
             return data
         except Exception:

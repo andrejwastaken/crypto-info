@@ -1,5 +1,7 @@
 import io
 import os
+import sys
+from pathlib import Path
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -7,20 +9,17 @@ from sqlalchemy import create_engine, inspect
 
 load_dotenv()
 
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_NAME = os.getenv("DB_NAME", "crypto_db")
-DB_USER = os.getenv("DB_USER", "postgres")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "password")
-DB_PORT = os.getenv("DB_PORT", "5432")
 
 # threshold for using COPY vs standard insert
 LARGE_DATASET_THRESHOLD = 700_000
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
+from database.database import DatabaseManager  
 def get_engine():
-    """create and return SQLAlchemy engine for database connection."""
-    connection_string = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-    return create_engine(connection_string)
+    return DatabaseManager.get_engine()
 
 
 def save_df_to_db(
