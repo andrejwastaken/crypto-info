@@ -192,6 +192,25 @@ def scrape_binance_news(light_mode: bool = False) -> pd.DataFrame:
     return df
 
 
+def scrape_binance_news_sequential(light_mode: bool = False) -> pd.DataFrame:
+    """
+    scrape cryptocurrency news from all binance categories sequentially.
+    """
+    all_data = []
+
+    for category in CATEGORIES:
+        articles = scrape_category(category, light_mode=light_mode)
+        all_data.extend(articles)
+
+    df = pd.DataFrame(all_data)
+    
+    if not df.empty:
+        df = df.drop_duplicates(subset=['link'])
+    
+    print("Scraping complete")
+    return df
+
+
 def main():
     print("This script exposes scrape_binance_news(). Run scrapers_aggregator.py to execute.")
 
