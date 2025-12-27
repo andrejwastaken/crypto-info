@@ -93,7 +93,7 @@ const Nav = () => {
 			console.log("status: ", data.status);
 
 			if (data.status === "idle") {
-				console.log("update complete");
+				alert("update completed");
 				clearInterval(interval);
 			}
 		}, 5000);

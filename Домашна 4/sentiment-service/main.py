@@ -19,26 +19,32 @@ except ImportError as e:
 
 app = FastAPI()
 
-@app.get("/api/light-sentiment")
-async def get_news_sentiment():
+@app.post("/api/update-sentiment", status_code=202)
+async def get_news_sentiment(request: Request):
     if not run_pipeline:
         return {"error": "Sentiment analysis pipeline not available"}
     
+    data = await request.json()
+    callback_url = data.get("callbackUrl")
+    
+    if callback_url:
+        # schedule sentiment analysis pipeline
+        asyncio.create_task(run_sentiment_pipeline(callback_url))
+    
+    return {"status": "accepted"}
+
+async def run_sentiment_pipeline(callback_url: str):
+    print('Starting sentiment analysis pipeline...')
     try:
-        df = run_pipeline(light_mode=True)
+        # run the pipeline
+        run_pipeline(light_mode=True)
+        print('Sentiment analysis pipeline completed.')
         
-        if df is None or df.empty:
-            return {"message": "No news found or pipeline stopped", "data": []}
-            
-        # Convert dataframe to list of dicts
-        # Handle datetime serialization
-        if 'date' in df.columns:
-            df['date'] = df['date'].astype(str)
-            
-        return {"data": df.to_dict(orient="records")}
-        
+        async with httpx.AsyncClient() as client:
+            print(f'Sending callback to {callback_url}')
+            await client.post(callback_url, json={})
     except Exception as e:
-        return {"error": str(e)}
+        print(f"Error in sentiment pipeline: {e}")
 
 @app.post("/api/test", status_code=202)
 async def test_route(request: Request):

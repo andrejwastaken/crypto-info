@@ -50,8 +50,8 @@ public class SentimentUpdateService {
                 Map<String, String> request = Map.of("callbackUrl", callbackUrl);
 
                 restTemplate.postForEntity(
-                        "http://localhost:8000/api/test",
-//                        "http://localhost:8000/api/update-sentiment",
+//                        "http://localhost:8000/api/test",
+                        "http://localhost:8000/api/update-sentiment",
                         request,
                         String.class
                 );
