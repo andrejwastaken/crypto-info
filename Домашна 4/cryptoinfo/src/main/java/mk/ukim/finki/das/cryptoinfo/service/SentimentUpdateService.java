@@ -5,19 +5,21 @@ import mk.ukim.finki.das.cryptoinfo.dto.JobStatus;
 import mk.ukim.finki.das.cryptoinfo.dto.SentimentUpdateJob;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.IOException;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
+
 
 @Service
 public class SentimentUpdateService {
+    private static final long UPDATE_COOLDOWN_MINUTES = 10;
+
     @Getter
     private SentimentUpdateJob currentJob = null;
-    private final Set<SseEmitter> emitters = ConcurrentHashMap.newKeySet();
+    @Getter
+    private LocalDateTime lastCompletedAt = null;
     private final RestTemplate restTemplate = new RestTemplate();
 
     public synchronized SentimentUpdateJob startOrGetUpdate() {
@@ -26,12 +28,23 @@ public class SentimentUpdateService {
             return currentJob;
         }
 
+        // check if we are currently in the cooldown period
+        if (lastCompletedAt != null) {
+            long minutesSinceLastUpdate = Duration.between(lastCompletedAt, LocalDateTime.now()).toMinutes();
+            if (minutesSinceLastUpdate < UPDATE_COOLDOWN_MINUTES){
+                long minutesRemaining = UPDATE_COOLDOWN_MINUTES - minutesSinceLastUpdate;
+                System.out.println("update attempted too soon. " + minutesRemaining + " minutes remaining");
+                return null;
+            }
+        }
+
+        // start new update
         UUID jobId = UUID.randomUUID();
         currentJob = new SentimentUpdateJob(jobId, JobStatus.PROCESSING, LocalDateTime.now());
 
         CompletableFuture.runAsync(() -> {
             try {
-                // replace in prod
+                // todo: replace in prod
                 String callbackUrl =
                         "http://localhost:8080/api/sentiment/callback/" + jobId;
                 Map<String, String> request = Map.of("callbackUrl", callbackUrl);
@@ -46,60 +59,35 @@ public class SentimentUpdateService {
                 System.out.println("Triggered update microservice.");
             } catch (Exception e) {
                 System.out.println("failed to trigger update. error: " + e);
-                completeUpdate(jobId, true);
+                completeUpdate(jobId);
             }
         });
         return currentJob;
     }
 
-    public void registerEmitter(SseEmitter emitter){
-        emitters.add(emitter);
-
-        Runnable cleanup = () -> {
-            emitters.remove(emitter);
-            System.out.println("removed emitter, active emitters left: " + emitters.size());
-        };
-
-        emitter.onCompletion(cleanup);
-        emitter.onTimeout(cleanup);
-        emitter.onError(e -> cleanup.run());
-
-        System.out.println("registered emitter, active emitters: " + emitters.size());
-    }
-
-    public synchronized void completeUpdate(UUID jobId, boolean error){
+    public synchronized void completeUpdate(UUID jobId){
         if (currentJob == null || !currentJob.getJobId().equals(jobId)) {
             System.out.println("Invalid jobId:" + jobId);
             return;
         }
 
         currentJob.setStatus(JobStatus.COMPLETED);
+        lastCompletedAt = LocalDateTime.now();
         System.out.println("update completed for jobId: " + jobId);
 
-        // notify all clients
-        Map<String, Object> completionMessage = Map.of(
-                "status", JobStatus.COMPLETED,
-                "jobId", jobId,
-                "error", error
-        );
-
-        List<SseEmitter> deadEmitters = new ArrayList<>();
-        for (SseEmitter emitter : emitters){
-            try {
-                emitter.send(SseEmitter.event()
-                        .name("update-complete")
-                        .data(completionMessage));
-                emitter.complete();
-            } catch (IOException e) {
-                System.out.println("failed to send completion to emitter. error: " + e);
-                deadEmitters.add(emitter);
-            }
-        }
-
-        deadEmitters.forEach(emitters::remove);
-        System.out.println("notified clients of completion");
         currentJob = null;
     }
+
+    public Long getMinutesUntilNextUpdate(){
+        if (lastCompletedAt == null){
+            return 0L;
+        }
+        long minutesSinceLastUpdate = Duration.between(lastCompletedAt, LocalDateTime.now()).toMinutes();
+        long minutesRemaining = UPDATE_COOLDOWN_MINUTES - minutesSinceLastUpdate;
+        return Math.max(0, minutesRemaining);
+    }
+
+
 
 }
 

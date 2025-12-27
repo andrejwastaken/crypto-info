@@ -54,7 +54,7 @@ async def test_route(request: Request):
 async def send_callback(callback_url: str, data: dict):
     print('starting job...')
     # simulate long running task
-    await asyncio.sleep(60)
+    await asyncio.sleep(5)
     try:
         async with httpx.AsyncClient() as client:
             print('sending request now.')
