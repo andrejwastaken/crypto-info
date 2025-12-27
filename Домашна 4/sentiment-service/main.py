@@ -1,7 +1,10 @@
 import sys
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 import uvicorn
+import time
+import asyncio
+import httpx
 
 scrapers_path = Path(__file__).parent.parent / "sentiment-analysis" / "scrapers"
 analysis_path = Path(__file__).parent.parent / "sentiment-analysis" / "analysis"
@@ -36,6 +39,28 @@ async def get_news_sentiment():
         
     except Exception as e:
         return {"error": str(e)}
+
+@app.post("/api/test", status_code=202)
+async def test_route(request: Request):
+    data = await request.json()
+    callback_url = data.get("callbackUrl")
+    
+    if callback_url:
+        # schedule callback 
+        asyncio.create_task(send_callback(callback_url, data))
+    
+    return {"status": "accepted"}
+
+async def send_callback(callback_url: str, data: dict):
+    print('starting job...')
+    # simulate long running task
+    await asyncio.sleep(60)
+    try:
+        async with httpx.AsyncClient() as client:
+            print('sending request now.')
+            await client.post(callback_url, json=data)
+    except Exception as e:
+        print(f"Error sending callback: {e}")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
