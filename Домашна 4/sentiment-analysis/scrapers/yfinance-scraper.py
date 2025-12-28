@@ -83,13 +83,11 @@ def parse_article_element(li: Tag) -> Optional[dict]:
 	)
 
 
-def scrape_articles(html: str, limit: Optional[int] = None) -> List[dict]:
+def scrape_articles(html: str) -> List[dict]:
 	soup = BeautifulSoup(html, "html.parser")
 	articles = []
 
 	items = soup.find_all("li", class_=["stream-item", "story-item"])
-	if limit:
-		items = items[:limit]
 
 	for li in items:
 		article = parse_article_element(li)
@@ -99,23 +97,19 @@ def scrape_articles(html: str, limit: Optional[int] = None) -> List[dict]:
 	return articles
 
 
-def scrape_yfinance_news(light_mode: bool = False) -> pd.DataFrame:
+def scrape_yfinance_news(light_mode = False) -> pd.DataFrame:
 	"""
 	scrape cryptocurrency news from yahoo finance news.
 	"""
 	url = f"{BASE_URL}{TARGET_PATH}"
 	html = fetch_html(url)
 	
-	# Arbitrary limit for light mode
-	limit = 5 if light_mode else None
-	articles = scrape_articles(html, limit=limit)
+	articles = scrape_articles(html)
 	
 	return pd.DataFrame(articles)
 
 
 def main() -> None:
-	df = scrape_yfinance_news()
-	df.to_csv('test.csv')
 	print("This script exposes scrape_yfinance_news(). Run scrapers_aggregator.py to execute.")
 
 

@@ -5,8 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import org.hibernate.annotations.Immutable;
 
-import java.time.LocalDate;
-import java.util.List;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "news_sentiment")
@@ -19,7 +18,7 @@ public class TextSentiment {
     @NotNull
     private String title;
 
-    private LocalDate date;
+    private LocalDateTime date;
 
     @Column(columnDefinition = "text[]")
     @SuppressWarnings("JpaAttributeTypeInspection")

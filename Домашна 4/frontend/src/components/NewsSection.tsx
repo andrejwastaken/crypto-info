@@ -1,5 +1,6 @@
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { useEffect, useState } from "react";
+import { useNewsUpdate } from "../context/NewsUpdateContext";
 
 export interface NewsArticle {
 	id: number;
@@ -126,40 +127,57 @@ const NewsSection = ({ symbol }: NewsSectionProps) => {
 	const [nextPageUrl, setNextPageUrl] = useState<string | null>(null);
 	const [loadingMore, setLoadingMore] = useState(false);
 
-	useEffect(() => {
-		const fetchNews = async () => {
-			if (!symbol) return;
+	const { isUpdateAvailable, updateButtonText, triggerUpdate } =
+		useNewsUpdate();
 
-			setLoading(true);
-			try {
-				const response = await fetch(
-					`http://localhost:8080/api/sentiment?symbol=${symbol.toUpperCase()}&size=9`
+	const fetchNews = async () => {
+		if (!symbol) return;
+
+		setLoading(true);
+		try {
+			const response = await fetch(
+				`http://localhost:8080/api/sentiment?symbol=${symbol.toUpperCase()}&size=9`
+			);
+			if (response.ok) {
+				const data: PagedResponse = await response.json();
+				const articles: NewsArticle[] = data._embedded.textSentimentList.map(
+					(item) => ({
+						id: item.id,
+						title: item.title,
+						img_src: item.imageLink || "/logo.png",
+						symbols: item.symbols,
+						link: item.link,
+						date: item.date,
+						sentiment: mapSentiment(item.label),
+						score: item.score,
+					})
 				);
-				if (response.ok) {
-					const data: PagedResponse = await response.json();
-					const articles: NewsArticle[] = data._embedded.textSentimentList.map(
-						(item) => ({
-							id: item.id,
-							title: item.title,
-							img_src: item.imageLink || "/logo.png",
-							symbols: item.symbols,
-							link: item.link,
-							date: item.date,
-							sentiment: mapSentiment(item.label),
-							score: item.score,
-						})
-					);
-					setNews(articles);
-					setNextPageUrl(data._links.next?.href || null);
-				}
-			} catch (error) {
-				console.error("Failed to fetch news:", error);
-			} finally {
-				setLoading(false);
+				setNews(articles);
+				setNextPageUrl(data._links.next?.href || null);
+			}
+		} catch (error) {
+			console.error("Failed to fetch news:", error);
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	useEffect(() => {
+		fetchNews();
+	}, [symbol]);
+
+	// Listen for update completion event to refresh news
+	useEffect(() => {
+		const handleUpdateComplete = () => {
+			if (symbol) {
+				fetchNews();
 			}
 		};
 
-		fetchNews();
+		window.addEventListener("newsUpdateCompleted", handleUpdateComplete);
+		return () => {
+			window.removeEventListener("newsUpdateCompleted", handleUpdateComplete);
+		};
 	}, [symbol]);
 
 	const handleLoadMore = async () => {
@@ -236,9 +254,21 @@ const NewsSection = ({ symbol }: NewsSectionProps) => {
 
 	return (
 		<div className="mt-8">
-			<h2 className="text-2xl font-semibold text-amber-100 mb-4">
-				Latest News
-			</h2>
+			<div className="flex flex-row items-center mb-4 justify-between">
+				<h2 className="text-2xl font-semibold text-amber-100">Latest News</h2>
+
+				<button
+					onClick={triggerUpdate}
+					disabled={!isUpdateAvailable}
+					className={`px-6 py-2 text-sm font-medium rounded-md border transition-colors ${
+						!isUpdateAvailable
+							? "bg-amber-200 text-slate-800 border-amber-400 cursor-not-allowed"
+							: "bg-amber-200 text-slate-800 border-amber-400 hover:bg-amber-300 hover:border-amber-500 hover:cursor-pointer"
+					}`}
+				>
+					{updateButtonText}
+				</button>
+			</div>
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 				{news.map((article) => {
 					const { colors, icon } = getSentimentConfig(article.sentiment);

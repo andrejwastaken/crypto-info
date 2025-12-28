@@ -2,6 +2,7 @@ import { createBrowserRouter, Outlet, RouterProvider } from "react-router-dom";
 import Footer from "./components/Footer";
 import Nav from "./components/Nav";
 import { CoinsProvider } from "./context/CoinsContext";
+import { NewsUpdateProvider } from "./context/NewsUpdateContext";
 import AboutPage from "./pages/AboutPage";
 import CoinPage from "./pages/CoinPage";
 import HowItWorksPage from "./pages/HowItWorksPage";
@@ -33,7 +34,9 @@ const router = createBrowserRouter([
 const App = () => {
 	return (
 		<CoinsProvider>
-			<RouterProvider router={router} />
+			<NewsUpdateProvider>
+				<RouterProvider router={router} />
+			</NewsUpdateProvider>
 		</CoinsProvider>
 	);
 };
