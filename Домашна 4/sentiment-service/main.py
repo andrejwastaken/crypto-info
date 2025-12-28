@@ -28,7 +28,6 @@ async def get_news_sentiment(request: Request):
     callback_url = data.get("callbackUrl")
     
     if callback_url:
-        # schedule sentiment analysis pipeline
         asyncio.create_task(run_sentiment_pipeline(callback_url))
     
     return {"status": "accepted"}
@@ -36,37 +35,35 @@ async def get_news_sentiment(request: Request):
 async def run_sentiment_pipeline(callback_url: str):
     print('Starting sentiment analysis pipeline...')
     try:
-        # run the pipeline
-        run_pipeline(light_mode=True)
+        run_pipeline()
         print('Sentiment analysis pipeline completed.')
-        
         async with httpx.AsyncClient() as client:
             print(f'Sending callback to {callback_url}')
             await client.post(callback_url, json={})
     except Exception as e:
         print(f"Error in sentiment pipeline: {e}")
 
-@app.post("/api/test", status_code=202)
-async def test_route(request: Request):
-    data = await request.json()
-    callback_url = data.get("callbackUrl")
+# @app.post("/api/test", status_code=202)
+# async def test_route(request: Request):
+#     data = await request.json()
+#     callback_url = data.get("callbackUrl")
     
-    if callback_url:
-        # schedule callback 
-        asyncio.create_task(send_callback(callback_url, data))
+#     if callback_url:
+#         # schedule callback 
+#         asyncio.create_task(send_callback(callback_url, data))
     
-    return {"status": "accepted"}
+#     return {"status": "accepted"}
 
-async def send_callback(callback_url: str, data: dict):
-    print('starting job...')
-    # simulate long running task
-    await asyncio.sleep(5)
-    try:
-        async with httpx.AsyncClient() as client:
-            print('sending request now.')
-            await client.post(callback_url, json=data)
-    except Exception as e:
-        print(f"Error sending callback: {e}")
+# async def send_callback(callback_url: str, data: dict):
+#     print('starting job...')
+#     # simulate long running task
+#     await asyncio.sleep(5)
+#     try:
+#         async with httpx.AsyncClient() as client:
+#             print('sending request now.')
+#             await client.post(callback_url, json=data)
+#     except Exception as e:
+#         print(f"Error sending callback: {e}")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -8,7 +8,6 @@ const Nav = () => {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [showSuggestions, setShowSuggestions] = useState(false);
 	const [selectedIndex, setSelectedIndex] = useState(-1);
-	const [isUpdating, setIsUpdating] = useState(false);
 	const SEARCH_RESULTS = 3;
 
 	const filteredCoins = searchQuery.trim()
@@ -60,43 +59,6 @@ const Nav = () => {
 	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setSearchQuery(e.target.value);
 		setSelectedIndex(-1);
-	};
-
-	// todo:
-	// add toasts
-	// add types
-	// move button to a more suitable place
-	// clear interval and show error message after a certain time period
-	const triggerUpdate = async () => {
-		const response = await fetch("http://localhost:8080/api/sentiment/update", {
-			method: "POST",
-		});
-		if (response.status === 429) {
-			const data = await response.json();
-			alert(`Please wait ${data.minutesUntilNextUpdate} more minutes`);
-			return;
-		}
-
-		if (response.status === 202) {
-			console.log("update started, begin with polling....");
-			pollStatus();
-		}
-	};
-
-	const pollStatus = async () => {
-		const interval = setInterval(async () => {
-			const response = await fetch(
-				"http://localhost:8080/api/sentiment/status"
-			);
-			const data = await response.json();
-
-			console.log("status: ", data.status);
-
-			if (data.status === "idle") {
-				alert("update completed");
-				clearInterval(interval);
-			}
-		}, 5000);
 	};
 
 	return (
@@ -158,17 +120,6 @@ const Nav = () => {
 				<Link to="/about" className="hover:underline">
 					About us
 				</Link>
-				<button
-					onClick={triggerUpdate}
-					disabled={isUpdating}
-					className={`px-4 py-2 rounded ${
-						isUpdating
-							? "bg-gray-400 cursor-not-allowed"
-							: "bg-blue-500 hover:bg-blue-600 text-white"
-					}`}
-				>
-					{isUpdating ? "Updating..." : "Update Sentiment"}
-				</button>
 			</div>
 		</nav>
 	);
