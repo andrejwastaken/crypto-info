@@ -1,13 +1,12 @@
 package mk.ukim.finki.das.cryptoinfo.controller;
 
-import java.io.IOException;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 
 import lombok.RequiredArgsConstructor;
+import mk.ukim.finki.das.cryptoinfo.dto.CallbackRequest;
 import mk.ukim.finki.das.cryptoinfo.dto.SentimentUpdateJob;
+import mk.ukim.finki.das.cryptoinfo.exceptions.ServiceNotAvailableException;
 import mk.ukim.finki.das.cryptoinfo.service.SentimentUpdateService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 
 import mk.ukim.finki.das.cryptoinfo.model.TextSentiment;
 import mk.ukim.finki.das.cryptoinfo.service.TextSentimentService;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 @CrossOrigin(origins="*")
@@ -42,22 +40,31 @@ public class TextSentimentController {
 
     @PostMapping("/update")
     public ResponseEntity<Map<String, Object>> triggerUpdate(){
-        SentimentUpdateJob job = sentimentUpdateService.startOrGetUpdate();
-        if (job == null) {
-            Long minutesRemaining = sentimentUpdateService.getMinutesUntilNextUpdate();
-            return ResponseEntity.status(429)
-                    .body(Map.of(
-                            "message", "Update requested too soon",
-                            "minutesUntilNextUpdate", minutesRemaining
-                    ));
+        try {
+            SentimentUpdateJob job = sentimentUpdateService.startOrGetUpdate();
+            if (job == null) {
+                Long minutesRemaining = sentimentUpdateService.getMinutesUntilNextUpdate();
+                return ResponseEntity.status(429)
+                        .body(Map.of(
+                                "message", "Update requested too soon",
+                                "minutesUntilNextUpdate", minutesRemaining
+                        ));
+            }
+        } catch (ServiceNotAvailableException e) {
+            return ResponseEntity.internalServerError().build();
         }
+
         return ResponseEntity.accepted().build();
     }
 
     // todo: requests should only be allowed from sentiment service
     @PostMapping("/callback/{jobId}")
-    public ResponseEntity<Void> handleCallback(@PathVariable UUID jobId){
-        sentimentUpdateService.completeUpdate(jobId);
+    public ResponseEntity<Void> handleCallback(
+            @PathVariable UUID jobId,
+            @RequestBody CallbackRequest callbackRequest
+    ){
+        boolean failed = callbackRequest.success() == null || !callbackRequest.success();
+        sentimentUpdateService.completeUpdate(jobId, failed);
         return ResponseEntity.ok().build();
     }
 
@@ -66,6 +73,13 @@ public class TextSentimentController {
         SentimentUpdateJob currentJob = sentimentUpdateService.getCurrentJob();
 
         if (currentJob == null){
+            if (sentimentUpdateService.isLastJobFailed()){
+                return ResponseEntity.ok(Map.of(
+                        "status", "failed",
+                        "message", "Last update job timed out"
+                ));
+            }
+
             if (sentimentUpdateService.getLastCompletedAt() != null){
                 return ResponseEntity.ok(Map.of(
                         "status", "idle",

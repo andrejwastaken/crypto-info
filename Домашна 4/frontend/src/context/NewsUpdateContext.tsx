@@ -105,6 +105,10 @@ export const NewsUpdateProvider = ({ children }: { children: ReactNode }) => {
 					// Dispatch custom event to notify components
 					window.dispatchEvent(new CustomEvent("newsUpdateCompleted"));
 				}
+
+				if (data.status === "failed") {
+					throw new Error(data.message);
+				}
 			} catch (error) {
 				cleanupPolling();
 				setIsUpdateAvailable(true);
@@ -244,6 +248,9 @@ export const NewsUpdateProvider = ({ children }: { children: ReactNode }) => {
 				setIsPolling(true);
 				pollingStartTimeRef.current = Date.now();
 				startPolling();
+			}
+			if (!response.ok) {
+				throw new Error();
 			}
 		} catch (error) {
 			setIsUpdateAvailable(true);

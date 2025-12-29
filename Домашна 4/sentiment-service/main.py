@@ -24,24 +24,34 @@ async def get_news_sentiment(request: Request):
     if not run_pipeline:
         return {"error": "Sentiment analysis pipeline not available"}
     
-    data = await request.json()
-    callback_url = data.get("callbackUrl")
-    
-    if callback_url:
+    try:
+        data = await request.json()
+        callback_url = data.get("callbackUrl")
+        
+        if not callback_url:
+            return {"error": "callbackUrl is required"}
+
         asyncio.create_task(run_sentiment_pipeline(callback_url))
-    
-    return {"status": "accepted"}
+        
+        return {"status": "accepted"}
+    except Exception as e:
+        return {"error": "Failed to process request"}
 
 async def run_sentiment_pipeline(callback_url: str):
     print('Starting sentiment analysis pipeline...')
+    pipeline_success = False
     try:
         run_pipeline()
+        pipeline_success = True
         print('Sentiment analysis pipeline completed.')
-        async with httpx.AsyncClient() as client:
-            print(f'Sending callback to {callback_url}')
-            await client.post(callback_url, json={})
     except Exception as e:
         print(f"Error in sentiment pipeline: {e}")
+    async with httpx.AsyncClient() as client:
+        print(f'Sending callback to {callback_url}')
+        await client.post(
+                callback_url, 
+                json={"success": pipeline_success}
+            )
 
 # @app.post("/api/test", status_code=202)
 # async def test_route(request: Request):
