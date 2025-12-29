@@ -1,6 +1,7 @@
 package mk.ukim.finki.das.cryptoinfo.service;
 
 import lombok.RequiredArgsConstructor;
+import mk.ukim.finki.das.cryptoinfo.model.CoinPctChangeProjection;
 import mk.ukim.finki.das.cryptoinfo.model.LowHighProjection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -9,6 +10,8 @@ import org.springframework.stereotype.Service;
 import mk.ukim.finki.das.cryptoinfo.dto.CoinStatsDTO;
 import mk.ukim.finki.das.cryptoinfo.model.OhlcvData;
 import mk.ukim.finki.das.cryptoinfo.repository.OhlcvDataRepository;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -44,5 +47,9 @@ public class OhlcvDataService {
             latest.getSymbol(),  
             latest.getName()     
         );
+    }
+
+    public List<CoinPctChangeProjection> getTopCoinsWithPctChange(){
+        return repository.getTopCoinsWithPctChange();
     }
 }

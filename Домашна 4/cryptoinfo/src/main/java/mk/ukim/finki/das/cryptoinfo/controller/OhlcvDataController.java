@@ -2,6 +2,7 @@ package mk.ukim.finki.das.cryptoinfo.controller;
 
 import lombok.RequiredArgsConstructor;
 import mk.ukim.finki.das.cryptoinfo.dto.CoinStatsDTO;
+import mk.ukim.finki.das.cryptoinfo.model.CoinPctChangeProjection;
 import mk.ukim.finki.das.cryptoinfo.model.OhlcvData;
 import mk.ukim.finki.das.cryptoinfo.service.OhlcvDataService;
 import org.springframework.data.domain.Page;
@@ -11,8 +12,12 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.PagedModel;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.net.http.HttpResponse;
+import java.util.List;
 
 @RestController
 @CrossOrigin(origins="*")
@@ -40,5 +45,10 @@ public class OhlcvDataController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(stats);
+    }
+
+    @GetMapping("/carousel")
+    public ResponseEntity<List<CoinPctChangeProjection>> getCarouselData(){
+        return ResponseEntity.ok(ohlcvDataService.getTopCoinsWithPctChange());
     }
 }

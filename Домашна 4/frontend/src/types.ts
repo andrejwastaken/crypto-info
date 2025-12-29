@@ -32,3 +32,8 @@ export type CoinStats = {
 	symbol: string;
 	name: string;
 };
+
+export type CoinCarousel = {
+	pctChange: number;
+	symbol: string;
+};
