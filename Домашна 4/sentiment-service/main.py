@@ -5,17 +5,26 @@ import uvicorn
 import time
 import asyncio
 import httpx
+from dotenv import load_dotenv
+import os
 
 scrapers_path = Path(__file__).parent.parent / "sentiment-analysis" / "scrapers"
 analysis_path = Path(__file__).parent.parent / "sentiment-analysis" / "analysis"
 sys.path.append(str(scrapers_path))
 sys.path.append(str(analysis_path))
 
+load_dotenv()
+
+CALLBACK_TOKEN = os.getenv("CALLBACK_SECRET_TOKEN")
+
 try:
     from sentiment_analysis import run_pipeline
 except ImportError as e:
     print(f"Error importing sentiment_analysis: {e}")
     run_pipeline = None
+
+if CALLBACK_TOKEN is None or CALLBACK_TOKEN == '':
+    raise Exception("No callback token.")
 
 app = FastAPI()
 
@@ -48,9 +57,13 @@ async def run_sentiment_pipeline(callback_url: str):
         print(f"Error in sentiment pipeline: {e}")
     async with httpx.AsyncClient() as client:
         print(f'Sending callback to {callback_url}')
+        headers = {
+            "X-Secret-Token": CALLBACK_TOKEN  
+        }
         await client.post(
                 callback_url, 
-                json={"success": pipeline_success}
+                json={"success": pipeline_success},
+                headers=headers
             )
 
 # @app.post("/api/test", status_code=202)
