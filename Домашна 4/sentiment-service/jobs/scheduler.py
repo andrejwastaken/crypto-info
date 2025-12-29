@@ -64,8 +64,8 @@ def run_sequence():
     print(f"{'='*20}\n", flush=True)
 
 def start_scheduler():
-    # Adjusted to your new requested time or keep as needed
-    schedule.every().day.at("22:47").do(run_sequence)
+   
+    schedule.every().day.at("08:00").do(run_sequence)
     
     print("="*40)
     print(f"SCHEDULER LOOP STARTED AT {datetime.now().strftime('%H:%M:%S')}")
