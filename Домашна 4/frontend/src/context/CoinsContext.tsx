@@ -28,7 +28,6 @@ export const CoinsProvider = ({ children }: { children: ReactNode }) => {
 			try {
 				const res = await fetch("http://localhost:8080/api/coins/");
 				const data = await res.json();
-				console.log(data);
 				const coinList: Coin[] = data || [];
 				setCoins(coinList);
 			} catch (error) {

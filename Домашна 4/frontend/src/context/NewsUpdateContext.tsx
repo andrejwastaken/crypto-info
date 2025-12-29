@@ -77,12 +77,10 @@ export const NewsUpdateProvider = ({ children }: { children: ReactNode }) => {
 				Date.now() - pollingStartTimeRef.current > POLLING_TIMEOUT
 			) {
 				cleanupPolling();
-				alert(
-					"Update is taking longer than expected. Please try refreshing the page later."
-				);
 				setIsUpdateAvailable(true);
 				setUpdateButtonText(getLatestNewsText("DEFAULT"));
 				localStorage.removeItem(STORAGE_KEY);
+				window.dispatchEvent(new CustomEvent("newsUpdateFailed"));
 				return;
 			}
 
@@ -104,18 +102,17 @@ export const NewsUpdateProvider = ({ children }: { children: ReactNode }) => {
 						getLatestNewsText("UNAVAILABLE", minutesUntilNext)
 					);
 
-					alert("Update completed successfully!");
-
 					// Dispatch custom event to notify components
 					window.dispatchEvent(new CustomEvent("newsUpdateCompleted"));
 				}
 			} catch (error) {
-				console.error("Failed to poll status:", error);
 				cleanupPolling();
-				alert("Failed to check update status. Please try again.");
 				setIsUpdateAvailable(true);
 				setUpdateButtonText(getLatestNewsText("DEFAULT"));
 				localStorage.removeItem(STORAGE_KEY);
+
+				// dispatch failure event
+				window.dispatchEvent(new CustomEvent("newsUpdateFailed"));
 			}
 		}, 5000);
 	}, [cleanupPolling]);
@@ -225,7 +222,6 @@ export const NewsUpdateProvider = ({ children }: { children: ReactNode }) => {
 		// Set loading state immediately
 		setIsUpdateAvailable(false);
 		setUpdateButtonText(getLatestNewsText("LOADING"));
-
 		try {
 			const response = await fetch(
 				"http://localhost:8080/api/sentiment/update",
@@ -250,10 +246,9 @@ export const NewsUpdateProvider = ({ children }: { children: ReactNode }) => {
 				startPolling();
 			}
 		} catch (error) {
-			console.error("Failed to trigger update:", error);
-			alert("Failed to trigger update. Please try again.");
 			setIsUpdateAvailable(true);
 			setUpdateButtonText(getLatestNewsText("DEFAULT"));
+			window.dispatchEvent(new CustomEvent("newsUpdateFailed"));
 		}
 	}, [startPolling]);
 
