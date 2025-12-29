@@ -5,16 +5,21 @@ import uvicorn
 import time
 import asyncio
 import httpx
+import threading
+from datetime import datetime
 
-scrapers_path = Path(__file__).parent.parent / "sentiment-analysis" / "scrapers"
-analysis_path = Path(__file__).parent.parent / "sentiment-analysis" / "analysis"
+
+
+scrapers_path = Path(__file__).parent/ "sentiment-analysis" / "scrapers"
+analysis_path = Path(__file__).parent/ "sentiment-analysis" / "analysis"
 sys.path.append(str(scrapers_path))
 sys.path.append(str(analysis_path))
 
 try:
     from sentiment_analysis import run_pipeline
+    from jobs.scheduler import start_scheduler
 except ImportError as e:
-    print(f"Error importing sentiment_analysis: {e}")
+    print(f"IMPORTING ERROR {e}")
     run_pipeline = None
 
 app = FastAPI()
@@ -65,5 +70,27 @@ async def run_sentiment_pipeline(callback_url: str):
 #     except Exception as e:
 #         print(f"Error sending callback: {e}")
 
+
+
+# Check if the scheduler thread exists and is alive
+
+# @app.get("/api/health")
+# async def health_check():
+#     scheduler_alive = False
+#     for thread in threading.enumerate():
+#         if thread.name == "SchedulerThread" and thread.is_alive():
+#             scheduler_alive = True
+#             break
+            
+#     return {
+#         "status": "online",
+#         "scheduler_running": scheduler_alive,
+#         "current_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+#     }
+
+
 if __name__ == "__main__":
+    scheduler_thread = threading.Thread(target=start_scheduler,name="SchedulerThread", daemon=True)
+    scheduler_thread.start()
     uvicorn.run(app, host="0.0.0.0", port=8000)
+   
