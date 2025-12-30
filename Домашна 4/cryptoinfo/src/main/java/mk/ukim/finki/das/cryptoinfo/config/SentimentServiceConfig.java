@@ -12,4 +12,7 @@ public class SentimentServiceConfig {
 
     @Value("${sentiment.service.secret-token}")
     private String secretToken;
+
+    @Value("${sentiment.service.url}")
+    private String serviceUrl;
 }

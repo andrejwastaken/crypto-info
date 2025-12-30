@@ -5,6 +5,7 @@ import {
 	useState,
 	type ReactNode,
 } from "react";
+import { API_BASE_URL } from "../consts";
 import type { Coin, CoinCarousel } from "../types";
 
 type CoinsContextType = {
@@ -29,7 +30,7 @@ export const CoinsProvider = ({ children }: { children: ReactNode }) => {
 	useEffect(() => {
 		const fetchCoins = async () => {
 			try {
-				const res = await fetch("http://localhost:8080/api/coins/");
+				const res = await fetch(`${API_BASE_URL}/api/coins/`);
 				const data = await res.json();
 				const coinList: Coin[] = data || [];
 				setCoins(coinList);
@@ -42,9 +43,7 @@ export const CoinsProvider = ({ children }: { children: ReactNode }) => {
 
 		const fetchCarouselCoins = async () => {
 			try {
-				const res = await fetch(
-					"http://localhost:8080/api/ohlcv-data/carousel"
-				);
+				const res = await fetch(`${API_BASE_URL}/api/ohlcv-data/carousel`);
 				const data = await res.json();
 				const coinList: CoinCarousel[] = data || [];
 				console.log(coinList);

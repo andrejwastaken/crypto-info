@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import NewsSection from "../components/NewsSection";
 import Spinner from "../components/Spinner";
+import { API_BASE_URL } from "../consts";
 import { formatNumber, formatPrice } from "../helpers";
 import type { CoinStats, OhlcvData } from "../types";
 
@@ -143,7 +144,7 @@ const CoinPage = () => {
 
 			try {
 				const res = await fetch(
-					`http://localhost:8080/api/ohlcv-data/${symbol}/stats`
+					`${API_BASE_URL}/api/ohlcv-data/${symbol}/stats`
 				);
 				if (res.ok) {
 					const data = await res.json();
@@ -168,7 +169,7 @@ const CoinPage = () => {
 		setTaLoading(true);
 		try {
 			const res = await fetch(
-				`http://localhost:8080/api/ta/${symbol}/score?period=${periodToFetch}`
+				`${API_BASE_URL}/api/ta/${symbol}/score?period=${periodToFetch}`
 			);
 			if (res.ok) {
 				const data = await res.json();
@@ -191,7 +192,7 @@ const CoinPage = () => {
 
 		setTaStatsLoading(true);
 		try {
-			const res = await fetch(`http://localhost:8080/api/ta/${symbol}`);
+			const res = await fetch(`${API_BASE_URL}/api/ta/${symbol}`);
 			if (res.ok) {
 				const data = await res.json();
 				// data is an array with 3 items, one for each period
@@ -228,9 +229,7 @@ const CoinPage = () => {
 			if (!symbol) return;
 
 			try {
-				const res = await fetch(
-					`http://localhost:8080/api/prediction/${symbol}`
-				);
+				const res = await fetch(`${API_BASE_URL}/api/prediction/${symbol}`);
 				if (res.ok) {
 					const data = await res.json();
 					setPrediction({
@@ -267,7 +266,7 @@ const CoinPage = () => {
 
 			try {
 				const res = await fetch(
-					`http://localhost:8080/api/ohlcv-data/${symbol}${sizeParam}`
+					`${API_BASE_URL}/api/ohlcv-data/${symbol}${sizeParam}`
 				);
 				const data = await res.json();
 

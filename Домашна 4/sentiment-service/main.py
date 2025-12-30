@@ -10,8 +10,6 @@ import os
 import threading
 from datetime import datetime
 
-
-
 scrapers_path = Path(__file__).parent/ "sentiment-analysis" / "scrapers"
 analysis_path = Path(__file__).parent/ "sentiment-analysis" / "analysis"
 sys.path.append(str(scrapers_path))
@@ -70,29 +68,6 @@ async def run_sentiment_pipeline(callback_url: str):
                 json={"success": pipeline_success},
                 headers=headers
             )
-
-# @app.post("/api/test", status_code=202)
-# async def test_route(request: Request):
-#     data = await request.json()
-#     callback_url = data.get("callbackUrl")
-    
-#     if callback_url:
-#         # schedule callback 
-#         asyncio.create_task(send_callback(callback_url, data))
-    
-#     return {"status": "accepted"}
-
-# async def send_callback(callback_url: str, data: dict):
-#     print('starting job...')
-#     # simulate long running task
-#     await asyncio.sleep(5)
-#     try:
-#         async with httpx.AsyncClient() as client:
-#             print('sending request now.')
-#             await client.post(callback_url, json=data)
-#     except Exception as e:
-#         print(f"Error sending callback: {e}")
-
 
 
 # Check if the scheduler thread exists and is alive

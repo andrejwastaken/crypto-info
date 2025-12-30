@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Spinner from "../components/Spinner";
+import { API_BASE_URL } from "../consts";
 import { useCoins } from "../context/CoinsContext";
 import { formatNumber, formatNumberChainMetrics } from "../helpers";
 
@@ -65,9 +66,7 @@ const LandingPage = () => {
 	useEffect(() => {
 		const fetchPredictions = async () => {
 			try {
-				const response = await fetch(
-					"http://localhost:8080/api/prediction/extremes"
-				);
+				const response = await fetch(`${API_BASE_URL}/api/prediction/extremes`);
 				if (response.ok) {
 					const data = await response.json();
 					setPredictions(data);
@@ -82,7 +81,7 @@ const LandingPage = () => {
 		const fetchChainSentimentPredictions = async () => {
 			try {
 				const response = await fetch(
-					"http://localhost:8080/api/chain-sentiment-prediction"
+					`${API_BASE_URL}/api/chain-sentiment-prediction`
 				);
 				if (response.ok) {
 					const data = await response.json();
@@ -97,7 +96,7 @@ const LandingPage = () => {
 
 		const fetchOnChainMetrics = async () => {
 			try {
-				const response = await fetch("http://localhost:8080/api/on-chain");
+				const response = await fetch(`${API_BASE_URL}/api/on-chain`);
 				if (response.ok) {
 					const data = await response.json();
 					setOnChainMetrics(data);

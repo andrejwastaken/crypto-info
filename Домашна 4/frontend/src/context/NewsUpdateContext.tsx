@@ -7,6 +7,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { API_BASE_URL } from "../consts";
 
 interface NewsUpdateContextType {
 	isUpdateAvailable: boolean;
@@ -85,9 +86,7 @@ export const NewsUpdateProvider = ({ children }: { children: ReactNode }) => {
 			}
 
 			try {
-				const response = await fetch(
-					"http://localhost:8080/api/sentiment/status"
-				);
+				const response = await fetch(`${API_BASE_URL}/api/sentiment/status`);
 				const data = await response.json();
 
 				if (data.status === "idle") {
@@ -227,10 +226,9 @@ export const NewsUpdateProvider = ({ children }: { children: ReactNode }) => {
 		setIsUpdateAvailable(false);
 		setUpdateButtonText(getLatestNewsText("LOADING"));
 		try {
-			const response = await fetch(
-				"http://localhost:8080/api/sentiment/update",
-				{ method: "POST" }
-			);
+			const response = await fetch(`${API_BASE_URL}/api/sentiment/update`, {
+				method: "POST",
+			});
 
 			if (response.status === 429) {
 				const data = await response.json();

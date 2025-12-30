@@ -1,5 +1,6 @@
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { useEffect, useState } from "react";
+import { API_BASE_URL } from "../consts";
 import { useNewsUpdate } from "../context/NewsUpdateContext";
 
 export interface NewsArticle {
@@ -136,7 +137,7 @@ const NewsSection = ({ symbol }: NewsSectionProps) => {
 		setLoading(true);
 		try {
 			const response = await fetch(
-				`http://localhost:8080/api/sentiment?symbol=${symbol.toUpperCase()}&size=9`
+				`${API_BASE_URL}/api/sentiment?symbol=${symbol.toUpperCase()}&size=9`
 			);
 			if (response.ok) {
 				const data: PagedResponse = await response.json();

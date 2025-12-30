@@ -1,9 +1,12 @@
 package mk.ukim.finki.das.cryptoinfo.service;
 
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import mk.ukim.finki.das.cryptoinfo.config.SentimentServiceConfig;
 import mk.ukim.finki.das.cryptoinfo.dto.JobStatus;
 import mk.ukim.finki.das.cryptoinfo.dto.SentimentUpdateJob;
 import mk.ukim.finki.das.cryptoinfo.exceptions.ServiceNotAvailableException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -17,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 
 
 @Service
+@RequiredArgsConstructor
 public class SentimentUpdateService {
     private static final long UPDATE_COOLDOWN_MINUTES = 10;
     private static final long JOB_TIMEOUT_MINUTES = 2;
@@ -30,6 +34,9 @@ public class SentimentUpdateService {
     private ScheduledFuture<?> timeoutTask = null;
     @Getter
     private boolean lastJobFailed = false;
+    private final SentimentServiceConfig sentimentServiceConfig;
+    @Value("${base-url}")
+    private String baseUrl;
 
     public synchronized SentimentUpdateJob startOrGetUpdate()
             throws ServiceNotAvailableException {
@@ -53,13 +60,13 @@ public class SentimentUpdateService {
         UUID jobId = UUID.randomUUID();
 
         try {
-            // todo: replace localhost in prod
             String callbackUrl =
-                    "http://localhost:8080/api/sentiment/callback/" + jobId;
+                    String.format("%s/api/sentiment/callback/%s",
+                            baseUrl, jobId);
             Map<String, String> request = Map.of("callbackUrl", callbackUrl);
 
             restTemplate.postForEntity(
-                    "http://localhost:8000/api/update-sentiment",
+                    sentimentServiceConfig.getServiceUrl() + "/api/update-sentiment",
                     request,
                     String.class
             );
