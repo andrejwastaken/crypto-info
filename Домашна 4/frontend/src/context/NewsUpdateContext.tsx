@@ -82,6 +82,17 @@ export const NewsUpdateProvider = ({ children }: { children: ReactNode }) => {
 				if (data.status === "idle") {
 					cleanupPolling();
 
+					if (data.minutesUntilNextUpdate === undefined) {
+						setIsUpdateAvailable(true);
+						setUpdateButtonText(getLatestNewsText("DEFAULT"));
+						setNextAvailableTime(null);
+						return;
+					}
+
+					if (!Number.isFinite(data.minutesUntilNextUpdate)) {
+						throw new Error("Invalid minutesUntilNextUpdate");
+					}
+
 					const minutesUntilNext = data.minutesUntilNextUpdate;
 					const nextAvailable = Date.now() + minutesUntilNext * 60 * 1000;
 					setNextAvailableTime(nextAvailable);
@@ -224,7 +235,7 @@ export const NewsUpdateProvider = ({ children }: { children: ReactNode }) => {
 				const data: { message: string; minutesUntilNextUpdate: number } =
 					await response.json();
 				const minutesUntilNext = data.minutesUntilNextUpdate;
-				// todo
+
 				const nextAvailable = Date.now() + minutesUntilNext * 60 * 1000;
 				setNextAvailableTime(nextAvailable);
 
