@@ -88,7 +88,7 @@ class DataRepository:
             df = df.drop_duplicates(subset=["date"], keep="last").sort_values("date")
         return df
 
-    def save_prediction(self, data: dict):
+    def save_prediction(self, data: dict, idx: int = 0, total: int = 0):
         # Remove old prediction for this date/symbol to avoid duplicates
         delete_sql = text(f"DELETE FROM {Config.TABLE_NAME} WHERE symbol = :sym AND date = :dt")
         with self.engine.connect() as conn:
@@ -96,7 +96,7 @@ class DataRepository:
             conn.commit()
         
         pd.DataFrame(data).to_sql(Config.TABLE_NAME, self.engine, if_exists='append', index=False)
-        logger.info(f"Saved prediction for {data['symbol'][0]}: ${data['predicted_close'][0]:.4f}")
+        logger.info(f"[{idx}/{total}] Saved prediction for {data['symbol'][0]}: ${data['predicted_close'][0]:.4f}")
 
 class LSTMModel(nn.Module):
     def __init__(self, input_size=1, hidden_size=64, num_layers=2, output_size=1):
@@ -114,12 +114,16 @@ class LSTMModel(nn.Module):
 
 class PredictionStrategy(ABC):
     @abstractmethod
-    def predict(self, df: pd.DataFrame, symbol: str) -> Optional[dict]:
+    def predict(self, df: pd.DataFrame, symbol: str, idx: int = 0, total: int = 0) -> Optional[dict]:
         pass
 
 class LSTMPredictionStrategy(PredictionStrategy):
     def __init__(self):
         self.device = Config.get_device()
+
+        # predictions will only be generated for symbols with an avg close price higher than this threshold
+        self.CLOSE_PRICE_CUTOFF = 1.01
+
         logger.info(f"LSTM Strategy initialized on: {self.device}")
 
     def _create_sequences(self, data: np.ndarray, seq_length: int) -> Tuple[np.ndarray, np.ndarray]:
@@ -131,16 +135,16 @@ class LSTMPredictionStrategy(PredictionStrategy):
             ys.append(y)
         return np.array(xs), np.array(ys)
 
-    def predict(self, df: pd.DataFrame, symbol: str) -> Optional[dict]:
+    def predict(self, df: pd.DataFrame, symbol: str, idx: int = 0, total: int = 0) -> Optional[dict]:
         min_required = Config.LOOKBACK_DAYS + Config.BATCH_SIZE + 10
         if len(df) < min_required:
-            logger.warning(f"Skipping {symbol}: Not enough data ({len(df)} rows).")
+            logger.warning(f"[{idx}/{total}] Skipping {symbol}: Not enough data ({len(df)} rows).")
             return None
 
-        # filter out coins with average close price <= 1.01
+        # filter out coins 
         avg_close = df['close'].mean()
-        if avg_close <= 1.01:
-            logger.info(f"Skipping {symbol}: Average close price too low ({avg_close:.4f})")
+        if avg_close <= self.CLOSE_PRICE_CUTOFF:
+            logger.info(f"[{idx}/{total}] Skipping {symbol}: Average close price too low ({avg_close:.4f})")
             return None
 
         scaler = MinMaxScaler(feature_range=(-1, 1))
@@ -206,7 +210,7 @@ class LSTMPredictionStrategy(PredictionStrategy):
         
         # Filter low accuracy models
         if r2 < 0.3:
-            logger.info(f"Skipping {symbol}: R2 score too low ({r2:.4f})")
+            logger.info(f"[{idx}/{total}] Skipping {symbol}: R2 score too low ({r2:.4f})")
             return None
 
         last_seq = scaled_data[-Config.LOOKBACK_DAYS:]
@@ -234,16 +238,17 @@ class PredictionService:
     def run(self):
         self.repo.init_table()
         symbols = self.repo.get_symbols()
-        logger.info(f"Starting analysis for {len(symbols)} symbols...")
+        total = len(symbols)
+        logger.info(f"Starting analysis for {total} symbols...")
 
-        for symbol in symbols:
+        for idx, symbol in enumerate(symbols, start=1):
             try:
                 df = self.repo.fetch_ohlcv(symbol)
-                result = self.strategy.predict(df, symbol)
+                result = self.strategy.predict(df, symbol, idx, total)
                 if result:
-                    self.repo.save_prediction(result)
+                    self.repo.save_prediction(result, idx, total)
             except Exception as e:
-                logger.error(f"Error processing {symbol}: {e}")
+                logger.error(f"[{idx}/{total}] Error processing {symbol}: {e}")
         
         logger.info("Batch processing complete.")
 
