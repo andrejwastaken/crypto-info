@@ -7,7 +7,10 @@ import { API_BASE_URL } from "../consts";
 import { useCoins } from "../context/CoinsContext";
 import type {
 	ChainSentimentPrediction,
+	ChainSentimentPredictionListResponse,
+	ExtremesResponse,
 	OnChainMetric,
+	OnChainMetricListResponse,
 	PredictionsData,
 	SortField,
 } from "../types";
@@ -32,7 +35,7 @@ const LandingPage = () => {
 			try {
 				const response = await fetch(`${API_BASE_URL}/api/prediction/extremes`);
 				if (response.ok) {
-					const data = await response.json();
+					const data: ExtremesResponse = await response.json();
 					setPredictions(data);
 				}
 			} catch (error) {
@@ -48,7 +51,8 @@ const LandingPage = () => {
 					`${API_BASE_URL}/api/chain-sentiment-prediction`
 				);
 				if (response.ok) {
-					const data = await response.json();
+					const data: ChainSentimentPredictionListResponse =
+						await response.json();
 					setChainSentimentPredictions(data);
 				}
 			} catch (error) {
@@ -62,7 +66,7 @@ const LandingPage = () => {
 			try {
 				const response = await fetch(`${API_BASE_URL}/api/on-chain`);
 				if (response.ok) {
-					const data = await response.json();
+					const data: OnChainMetricListResponse = await response.json();
 					setOnChainMetrics(data);
 				}
 			} catch (error) {

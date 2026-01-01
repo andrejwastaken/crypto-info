@@ -2,45 +2,8 @@ import { formatDistanceToNow, parseISO } from "date-fns";
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../consts";
 import { useNewsUpdate } from "../context/NewsUpdateContext";
-
-export interface NewsArticle {
-	id: number;
-	title: string;
-	img_src: string;
-	symbols: string[];
-	link: string;
-	date: string;
-	sentiment: "Positive" | "Negative" | "Neutral";
-	score: number;
-}
-
-interface PageInfo {
-	size: number;
-	totalElements: number;
-	totalPages: number;
-	number: number;
-}
-
-interface PagedResponse {
-	_embedded: {
-		textSentimentList: Array<{
-			id: number;
-			title: string;
-			date: string;
-			symbols: string[];
-			link: string;
-			imageLink: string;
-			label: string;
-			score: number;
-		}>;
-	};
-	_links: {
-		next?: {
-			href: string;
-		};
-	};
-	page: PageInfo;
-}
+import { mapSentiment } from "../helpers";
+import type { NewsArticle, TextSentimentPagedResponse } from "../types";
 
 const getSentimentConfig = (sentiment: string) => {
 	switch (sentiment) {
@@ -110,14 +73,6 @@ const formatDate = (dateString: string) => {
 	return formatDistanceToNow(date, { addSuffix: true });
 };
 
-// map backend sentiment labels to frontend format
-const mapSentiment = (label: string): "Positive" | "Negative" | "Neutral" => {
-	const lowerLabel = label.toLowerCase();
-	if (lowerLabel.includes("positive")) return "Positive";
-	if (lowerLabel.includes("negative")) return "Negative";
-	return "Neutral";
-};
-
 interface NewsSectionProps {
 	symbol?: string;
 }
@@ -140,7 +95,7 @@ const NewsSection = ({ symbol }: NewsSectionProps) => {
 				`${API_BASE_URL}/api/sentiment?symbol=${symbol.toUpperCase()}&size=9`
 			);
 			if (response.ok) {
-				const data: PagedResponse = await response.json();
+				const data: TextSentimentPagedResponse = await response.json();
 				const articles: NewsArticle[] = data._embedded.textSentimentList.map(
 					(item) => ({
 						id: item.id,
@@ -188,7 +143,7 @@ const NewsSection = ({ symbol }: NewsSectionProps) => {
 		try {
 			const response = await fetch(nextPageUrl);
 			if (response.ok) {
-				const data: PagedResponse = await response.json();
+				const data: TextSentimentPagedResponse = await response.json();
 				const newArticles: NewsArticle[] = data._embedded.textSentimentList.map(
 					(item) => ({
 						id: item.id,

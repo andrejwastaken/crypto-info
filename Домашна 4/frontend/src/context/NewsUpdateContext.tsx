@@ -8,27 +8,17 @@ import {
 	useState,
 } from "react";
 import { API_BASE_URL } from "../consts";
-
-interface NewsUpdateContextType {
-	isUpdateAvailable: boolean;
-	updateButtonText: string;
-	minutesRemaining: number | null;
-	triggerUpdate: () => Promise<void>;
-	isPolling: boolean;
-}
+import type {
+	NewsUpdateContextType,
+	NewsUpdateStoredState,
+	SentimentUpdateStatusResponse,
+} from "../types";
 
 const NewsUpdateContext = createContext<NewsUpdateContextType | undefined>(
 	undefined
 );
 
 const STORAGE_KEY = "newsUpdateState";
-
-interface StoredState {
-	nextAvailableTime: number | null;
-	isUpdateAvailable: boolean;
-	isPolling?: boolean;
-	pollingStartTime?: number;
-}
 
 const getLatestNewsText = (
 	state: "DEFAULT" | "LOADING" | "UNAVAILABLE",
@@ -87,7 +77,7 @@ export const NewsUpdateProvider = ({ children }: { children: ReactNode }) => {
 
 			try {
 				const response = await fetch(`${API_BASE_URL}/api/sentiment/status`);
-				const data = await response.json();
+				const data: SentimentUpdateStatusResponse = await response.json();
 
 				if (data.status === "idle") {
 					cleanupPolling();
@@ -125,7 +115,7 @@ export const NewsUpdateProvider = ({ children }: { children: ReactNode }) => {
 		const stored = localStorage.getItem(STORAGE_KEY);
 		if (stored) {
 			try {
-				const state: StoredState = JSON.parse(stored);
+				const state: NewsUpdateStoredState = JSON.parse(stored);
 				if (state.nextAvailableTime) {
 					const now = Date.now();
 					if (now < state.nextAvailableTime) {
@@ -168,7 +158,7 @@ export const NewsUpdateProvider = ({ children }: { children: ReactNode }) => {
 	// Save to localStorage when state changes
 	useEffect(() => {
 		if (nextAvailableTime !== null || isPolling) {
-			const state: StoredState = {
+			const state: NewsUpdateStoredState = {
 				nextAvailableTime,
 				isUpdateAvailable: false,
 				isPolling,
@@ -231,9 +221,10 @@ export const NewsUpdateProvider = ({ children }: { children: ReactNode }) => {
 			});
 
 			if (response.status === 429) {
-				const data = await response.json();
+				const data: { message: string; minutesUntilNextUpdate: number } =
+					await response.json();
 				const minutesUntilNext = data.minutesUntilNextUpdate;
-
+				// todo
 				const nextAvailable = Date.now() + minutesUntilNext * 60 * 1000;
 				setNextAvailableTime(nextAvailable);
 

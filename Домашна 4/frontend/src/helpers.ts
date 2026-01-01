@@ -87,3 +87,14 @@ export const formatNumberChainMetrics = (num: number): string => {
 	}
 	return formattedNum;
 };
+
+// Sentiment analysis helper
+
+export const mapSentiment = (
+	label: string
+): "Positive" | "Negative" | "Neutral" => {
+	const lowerLabel = label.toLowerCase();
+	if (lowerLabel.includes("positive")) return "Positive";
+	if (lowerLabel.includes("negative")) return "Negative";
+	return "Neutral";
+};

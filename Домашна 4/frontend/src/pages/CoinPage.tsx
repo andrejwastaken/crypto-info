@@ -12,8 +12,13 @@ import type {
 	AnalysisTimePeriod,
 	ChartType,
 	CoinStats,
+	CoinStatsResponse,
 	OhlcvData,
+	OhlcvDataPagedResponse,
 	PredictionData,
+	PredictionResponse,
+	TechnicalAnalysisDataResponse,
+	TechnicalAnalysisScoreResponse,
 	TechnicalAnalysisStats,
 	TimePeriod,
 } from "../types";
@@ -59,7 +64,7 @@ const CoinPage = () => {
 					`${API_BASE_URL}/api/ohlcv-data/${symbol}/stats`
 				);
 				if (res.ok) {
-					const data = await res.json();
+					const data: CoinStatsResponse = await res.json();
 					setCoinStats(data);
 				}
 			} catch (error) {
@@ -84,8 +89,7 @@ const CoinPage = () => {
 				`${API_BASE_URL}/api/ta/${symbol}/score?period=${periodToFetch}`
 			);
 			if (res.ok) {
-				const data = await res.json();
-				const score = data;
+				const score: TechnicalAnalysisScoreResponse = await res.json();
 				setTaScores((prev) => ({ ...prev, [periodToFetch]: score }));
 			}
 		} catch (error) {
@@ -106,14 +110,14 @@ const CoinPage = () => {
 		try {
 			const res = await fetch(`${API_BASE_URL}/api/ta/${symbol}`);
 			if (res.ok) {
-				const data = await res.json();
+				const data: TechnicalAnalysisDataResponse = await res.json();
 				// data is an array with 3 items, one for each period
 				const newStats = { DAY: null, WEEK: null, MONTH: null } as Record<
 					AnalysisTimePeriod,
-					any
+					TechnicalAnalysisStats | null
 				>;
 
-				data.forEach((item: any) => {
+				data.forEach((item) => {
 					if (
 						item.period === "DAY" ||
 						item.period === "WEEK" ||
@@ -143,7 +147,7 @@ const CoinPage = () => {
 			try {
 				const res = await fetch(`${API_BASE_URL}/api/prediction/${symbol}`);
 				if (res.ok) {
-					const data = await res.json();
+					const data: PredictionResponse = await res.json();
 					setPrediction({
 						price: data.predictedClose,
 					});
@@ -180,7 +184,7 @@ const CoinPage = () => {
 				const res = await fetch(
 					`${API_BASE_URL}/api/ohlcv-data/${symbol}${sizeParam}`
 				);
-				const data = await res.json();
+				const data: OhlcvDataPagedResponse = await res.json();
 
 				const list: OhlcvData[] = data._embedded?.ohlcvDataList || [];
 				// reverse to show oldest first for the chart

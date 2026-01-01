@@ -1,3 +1,5 @@
+// base types
+
 export type OhlcvData = {
 	id: number;
 	close: number;
@@ -119,4 +121,164 @@ export type MergedCandleData = {
 	openClose: [number, number];
 	highLow: [number, number];
 	isUp: boolean;
+};
+
+// NewsSection types
+export interface NewsArticle {
+	id: number;
+	title: string;
+	img_src: string;
+	symbols: string[];
+	link: string;
+	date: string;
+	sentiment: "Positive" | "Negative" | "Neutral";
+	score: number;
+}
+
+// API response types
+
+// CoinController
+export type CoinListResponse = Coin[];
+
+// OhlcvDataController
+export type OhlcvDataPagedResponse = {
+	_embedded: {
+		ohlcvDataList: OhlcvData[];
+	};
+	_links: {
+		first?: { href: string };
+		self: { href: string };
+		next?: { href: string };
+		last?: { href: string };
+	};
+	page: {
+		size: number;
+		totalElements: number;
+		totalPages: number;
+		number: number;
+	};
+};
+
+export type CoinStatsResponse = CoinStats;
+
+export type CarouselDataResponse = CoinCarousel[];
+
+// OhlcvPredictionController
+export type PredictionResponse = {
+	id: number;
+	symbol: string;
+	date: string;
+	predictedClose: number;
+	predictedChangePct: number;
+};
+
+export type ExtremesResponse = {
+	top: PredictionResponse[];
+	bottom: PredictionResponse[];
+};
+
+// TechnicalAnalysisController
+export type TechnicalAnalysisScoreResponse = number;
+
+export type TechnicalAnalysisDataResponse = {
+	id: number;
+	date: string;
+	rsi: number;
+	macdLine: number;
+	macdSignal: number;
+	stochK: number;
+	stochD: number;
+	dmiPlus: number;
+	dmiMinus: number;
+	adx: number;
+	cci: number;
+	symbol: string;
+	sma: number;
+	ema: number;
+	wma: number;
+	bollingerMiddle: number;
+	volumeSma: number;
+	normalizedScore: number;
+	period: AnalysisTimePeriod;
+}[];
+
+// OnChainMetricController
+export type OnChainMetricListResponse = OnChainMetric[];
+
+// OnChainSentimentPredictionController
+export type ChainSentimentPredictionListResponse = ChainSentimentPrediction[];
+
+// TextSentimentController
+export type TextSentimentPagedResponse = {
+	_embedded: {
+		textSentimentList: Array<{
+			id: number;
+			title: string;
+			date: string;
+			symbols: string[];
+			link: string;
+			imageLink: string;
+			label: string;
+			score: number;
+		}>;
+	};
+	_links: {
+		first?: { href: string };
+		self: { href: string };
+		next?: { href: string };
+		last?: { href: string };
+	};
+	page: {
+		size: number;
+		totalElements: number;
+		totalPages: number;
+		number: number;
+	};
+};
+
+export type SentimentUpdateStatusResponse =
+	| {
+			status: "idle";
+			lastCompletedAt?: string;
+			minutesUntilNextUpdate: number;
+	  }
+	| {
+			status: "running" | "pending";
+			startedAt: string;
+	  }
+	| {
+			status: "failed";
+			message: string;
+	  };
+
+export type SentimentUpdateTriggerResponse =
+	| {
+			accepted: true;
+	  }
+	| {
+			message: string;
+			minutesUntilNextUpdate: number;
+	  };
+
+// context types
+
+export type CoinsContextType = {
+	coins: Coin[];
+	coinsCarousel: CoinCarousel[];
+	loading: boolean;
+};
+
+export type NewsUpdateContextType = {
+	isUpdateAvailable: boolean;
+	updateButtonText: string;
+	minutesRemaining: number | null;
+	triggerUpdate: () => Promise<void>;
+	isPolling: boolean;
+};
+
+export type NewsUpdateStoredState = {
+	nextAvailableTime: number | null;
+	isUpdateAvailable: boolean;
+	isPolling?: boolean;
+	pollingStartTime?: number;
 };

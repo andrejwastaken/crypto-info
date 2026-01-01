@@ -6,13 +6,13 @@ import {
 	type ReactNode,
 } from "react";
 import { API_BASE_URL } from "../consts";
-import type { Coin, CoinCarousel } from "../types";
-
-type CoinsContextType = {
-	coins: Coin[];
-	coinsCarousel: CoinCarousel[];
-	loading: boolean;
-};
+import type {
+	CarouselDataResponse,
+	Coin,
+	CoinCarousel,
+	CoinListResponse,
+	CoinsContextType,
+} from "../types";
 
 const CoinsContext = createContext<CoinsContextType>({
 	coins: [],
@@ -31,7 +31,7 @@ export const CoinsProvider = ({ children }: { children: ReactNode }) => {
 		const fetchCoins = async () => {
 			try {
 				const res = await fetch(`${API_BASE_URL}/api/coins/`);
-				const data = await res.json();
+				const data: CoinListResponse = await res.json();
 				const coinList: Coin[] = data || [];
 				setCoins(coinList);
 			} catch (error) {
@@ -44,9 +44,8 @@ export const CoinsProvider = ({ children }: { children: ReactNode }) => {
 		const fetchCarouselCoins = async () => {
 			try {
 				const res = await fetch(`${API_BASE_URL}/api/ohlcv-data/carousel`);
-				const data = await res.json();
+				const data: CarouselDataResponse = await res.json();
 				const coinList: CoinCarousel[] = data || [];
-				console.log(coinList);
 				setCoinsCarousel(coinList);
 			} catch (error) {
 				console.error("Failed to fetch carousel data:", error);
