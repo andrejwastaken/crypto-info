@@ -97,5 +97,6 @@ async def run_sentiment_pipeline(callback_url: str):
 if __name__ == "__main__":
     scheduler_thread = threading.Thread(target=start_scheduler,name="SchedulerThread", daemon=True)
     scheduler_thread.start()
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
    

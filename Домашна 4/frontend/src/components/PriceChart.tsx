@@ -142,7 +142,10 @@ const PriceChart = ({
 									width={80}
 								/>
 								<Tooltip
-									formatter={(value: number | undefined) => [formatPrice(value ?? 0), "Close"]}
+									formatter={(value: number) => [
+										formatPrice(value ?? 0),
+										"Close",
+									]}
 									labelFormatter={(label) =>
 										new Date(label).toLocaleDateString().replace(/-/g, "/")
 									}
