@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 @Immutable
 public class TextSentiment {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @NotNull

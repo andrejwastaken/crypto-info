@@ -58,16 +58,23 @@ async def run_sentiment_pipeline(callback_url: str):
         print('Sentiment analysis pipeline completed.')
     except Exception as e:
         print(f"Error in sentiment pipeline: {e}")
-    async with httpx.AsyncClient() as client:
-        print(f'Sending callback to {callback_url}')
-        headers = {
-            "X-Secret-Token": CALLBACK_TOKEN  
-        }
-        await client.post(
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            headers = {
+                "X-Secret-Token": CALLBACK_TOKEN  
+            }
+            response = await client.post(
                 callback_url, 
                 json={"success": pipeline_success},
                 headers=headers
             )
+            print(f'Callback sent successfully. Status: {response.status_code}')
+    except httpx.ConnectError as e:
+        print(f"Failed to connect to callback URL {callback_url}")
+        print(f"Connection error: {e}")
+    except Exception as e:
+        print(f"Error sending callback: {type(e).__name__}: {e}")
 
 
 # Check if the scheduler thread exists and is alive
