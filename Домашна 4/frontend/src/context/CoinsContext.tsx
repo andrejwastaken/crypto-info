@@ -30,7 +30,7 @@ export const CoinsProvider = ({ children }: { children: ReactNode }) => {
 	useEffect(() => {
 		const fetchCoins = async () => {
 			try {
-				const res = await fetch(`${API_BASE_URL}/api/coins/`);
+				const res = await fetch(`${API_BASE_URL}/api/coins`);
 				const data: CoinListResponse = await res.json();
 				const coinList: Coin[] = data || [];
 				setCoins(coinList);

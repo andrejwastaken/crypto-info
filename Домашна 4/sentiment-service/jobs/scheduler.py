@@ -65,7 +65,7 @@ def run_sequence():
 
 def start_scheduler():
    
-    schedule.every().day.at("08:00").do(run_sequence)
+    schedule.every().day.at("16:30").do(run_sequence)
     
     print("="*40)
     print(f"SCHEDULER LOOP STARTED AT {datetime.now().strftime('%H:%M:%S')}")

@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 import sys
 from pathlib import Path
 from fastapi import FastAPI, Request
@@ -29,7 +30,14 @@ except ImportError as e:
 if CALLBACK_TOKEN is None or CALLBACK_TOKEN == '':
     raise Exception("No callback token.")
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler_thread = threading.Thread(target=start_scheduler, name="SchedulerThread", daemon=True)
+    scheduler_thread.start()
+    print("Scheduler thread started.")
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 @app.post("/api/update-sentiment", status_code=202)
 async def get_news_sentiment(request: Request):
@@ -76,27 +84,6 @@ async def run_sentiment_pipeline(callback_url: str):
     except Exception as e:
         print(f"Error sending callback: {type(e).__name__}: {e}")
 
-
-# Check if the scheduler thread exists and is alive
-
-# @app.get("/api/health")
-# async def health_check():
-#     scheduler_alive = False
-#     for thread in threading.enumerate():
-#         if thread.name == "SchedulerThread" and thread.is_alive():
-#             scheduler_alive = True
-#             break
-            
-#     return {
-#         "status": "online",
-#         "scheduler_running": scheduler_alive,
-#         "current_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-#     }
-
-
 if __name__ == "__main__":
-    scheduler_thread = threading.Thread(target=start_scheduler,name="SchedulerThread", daemon=True)
-    scheduler_thread.start()
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
-   

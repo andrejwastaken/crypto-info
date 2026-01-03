@@ -17,10 +17,10 @@ CATEGORIES = [
 ]
 
 CATEGORY_SYMBOL_MAP = {
-	"ethereum": "ETH",
-	"bitcoin": "BTC",
-	"xrp": "XRP",
-	"solana": "SOL",
+	"ethereum": "ETH-USD",
+	"bitcoin": "BTC-USD",
+	"xrp": "XRP-USD",
+	"solana": "SOL-USD",
 }
 
 def fetch_html(url: str) -> str:

@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class SentimentUpdateService {
     private static final long UPDATE_COOLDOWN_MINUTES = 10;
-    private static final long JOB_TIMEOUT_MINUTES = 2;
+    private static final long JOB_TIMEOUT_MINUTES = 5;
 
     @Getter
     private SentimentUpdateJob currentJob = null;

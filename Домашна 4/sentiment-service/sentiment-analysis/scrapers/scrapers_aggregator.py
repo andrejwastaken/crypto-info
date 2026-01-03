@@ -51,7 +51,7 @@ def scrape_all_news(light_mode: bool = False) -> pd.DataFrame:
     scrapers = [
         #("Binance", base_dir / "binance-scraper.py", "scrape_binance_news"),
         ("YFinance", base_dir / "yfinance-scraper.py", "scrape_yfinance_news"),
-        ("Coindesk", base_dir / "coindesk-scraper.py", "scrape_coindesk_news"),
+        # ("Coindesk", base_dir / "coindesk-scraper.py", "scrape_coindesk_news"),
     ]
     
     # scrape all sources

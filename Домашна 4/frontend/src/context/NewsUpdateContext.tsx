@@ -60,7 +60,7 @@ export const NewsUpdateProvider = ({ children }: { children: ReactNode }) => {
 
 	// Polling logic
 	const startPolling = useCallback(() => {
-		const POLLING_TIMEOUT = 2 * 60 * 1000; // 2 minutes
+		const POLLING_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
 		pollIntervalRef.current = setInterval(async () => {
 			if (
@@ -118,7 +118,7 @@ export const NewsUpdateProvider = ({ children }: { children: ReactNode }) => {
 				// dispatch failure event
 				window.dispatchEvent(new CustomEvent("newsUpdateFailed"));
 			}
-		}, 5000);
+		}, 10000);
 	}, [cleanupPolling]);
 
 	// Load from localStorage on mount
