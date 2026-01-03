@@ -1,0 +1,52 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    curl \
+    libpq-dev \ 
+    && rm -rf /var/lib/apt/lists/*
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
+RUN pip install --no-cache-dir \
+    numpy \
+    pandas \
+    scikit-learn \
+    transformers
+
+RUN pip install --no-cache-dir \
+    sqlalchemy \
+    psycopg2-binary \
+    fastapi \
+    uvicorn \
+    httpx \
+    python-dotenv \
+    requests
+
+RUN pip install --no-cache-dir \
+    beautifulsoup4 \
+    bs4 \
+    dateparser \
+    tqdm \
+    schedule \
+    selenium \
+    webdriver-manager
+
+RUN pip install --no-cache-dir \
+    yfinance \
+    coinmetrics-api-client \
+    pandas_ta
+
+COPY . .
+
+EXPOSE 8000
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

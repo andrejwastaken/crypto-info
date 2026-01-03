@@ -49,7 +49,7 @@ services:
   sentiment-service:
     build:
       context: ./sentiment-service
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile-local
     container_name: crypto-info-sentiment
     env_file:
       - .env
